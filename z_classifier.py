@@ -11,7 +11,7 @@ from utils.data import *
 from utils.transform import *
 from evaluation import EMD_CD
 # from pointnet.z_PointNetCls import *
-from z_PointNetCls import *
+from models.classifier import *
 from models.autoencoder import *
 
 # Arguments

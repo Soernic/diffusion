@@ -1,0 +1,36 @@
+Pairwise EMD CD
+
+
+[WARNING]
+  * EMD is not implemented due to GPU compatability issue.
+  * We will set all EMD to zero by default.
+  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py
+
+
+[lgan_mmd-CD] 0.05700402
+[lgan_cov-CD] 0.44250000
+[lgan_mmd_smp-CD] 0.05273054
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05608556
+[lgan_cov-CD] 0.48249999
+[lgan_mmd_smp-CD] 0.05026703
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05487339
+[lgan_cov-CD] 0.47250000
+[lgan_mmd_smp-CD] 0.05445223
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05579457
+[lgan_cov-CD] 0.47250000
+[lgan_mmd_smp-CD] 0.05208936
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05639595
+[lgan_cov-CD] 0.49250001
+[lgan_mmd_smp-CD] 0.04969449
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05553647
+[lgan_cov-CD] 0.50500000
+[lgan_mmd_smp-CD] 0.05227024
+Pairwise EMD CD
+[lgan_mmd-CD] 0.05381735
+[lgan_cov-CD] 0.50000000
+[lgan_mmd_smp-CD] 0.05227203

@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "/zhome/f5/d/187460/Desktop/diffusion-point-cloud/train_gen_trial.py", line 16, in <module>
+    from evaluation import *
+  File "/zhome/f5/d/187460/Desktop/diffusion-point-cloud/evaluation/__init__.py", line 1, in <module>
+    from .evaluation_metrics import *
+  File "/zhome/f5/d/187460/Desktop/diffusion-point-cloud/evaluation/evaluation_metrics.py", line 8, in <module>
+    from sklearn.neighbors import NearestNeighbors
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/neighbors/__init__.py", line 18, in <module>
+    from ._nca import NeighborhoodComponentsAnalysis
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/neighbors/_nca.py", line 23, in <module>
+    from ..decomposition import PCA
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/decomposition/__init__.py", line 8, in <module>
+    from ._dict_learning import (
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/decomposition/_dict_learning.py", line 22, in <module>
+    from ..linear_model import Lars, Lasso, LassoLars, orthogonal_mp_gram
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/linear_model/__init__.py", line 10, in <module>
+    from ._bayes import ARDRegression, BayesianRidge
+  File "/zhome/f5/d/187460/miniconda3/envs/fresh-env/lib/python3.12/site-packages/sklearn/linear_model/_bayes.py", line 26, in <module>
+    class BayesianRidge(RegressorMixin, LinearModel):
+  File "<frozen abc>", line 106, in __new__
+KeyboardInterrupt
