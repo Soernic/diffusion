@@ -21,7 +21,7 @@ parser = argparse.ArgumentParser()
 # Model arguments
 parser.add_argument('--model', type=str, default='flow', choices=['flow', 'gaussian'])
 parser.add_argument('--latent_dim', type=int, default=256)
-parser.add_argument('--num_steps', type=int, default=300)
+parser.add_argument('--num_steps', type=int, default=100)
 parser.add_argument('--beta_1', type=float, default=1e-4)
 parser.add_argument('--beta_T', type=float, default=0.02)
 parser.add_argument('--sched_mode', type=str, default='linear')
@@ -37,7 +37,7 @@ parser.add_argument('--spectral_norm', type=eval, default=False, choices=[True, 
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--categories', type=str_list, default=['airplane'])
+parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=64)
@@ -51,17 +51,19 @@ parser.add_argument('--sched_start_epoch', type=int, default=200*THOUSAND)
 parser.add_argument('--sched_end_epoch', type=int, default=400*THOUSAND)
 
 # Training
-parser.add_argument('--seed', type=int, default=2021)
+parser.add_argument('--seed', type=int, default=2020)
 parser.add_argument('--logging', type=eval, default=True, choices=[True, False])
 parser.add_argument('--log_root', type=str, default='./logs_gen')
 parser.add_argument('--device', type=str, default='cuda')
-parser.add_argument('--max_iters', type=int, default=400000)
-parser.add_argument('--val_freq', type=int, default=10000)
-parser.add_argument('--test_freq', type=int, default=30*THOUSAND)
+parser.add_argument('--max_iters', type=int, default=1*MILLION)
+parser.add_argument('--val_freq', type=int, default=1*THOUSAND)
+parser.add_argument('--test_freq', type=int, default=10*THOUSAND)
 parser.add_argument('--test_size', type=int, default=400)
 parser.add_argument('--tag', type=str, default=None)
 args = parser.parse_args()
 seed_all(args.seed)
+
+torch.cuda.empty_cache()
 
 # Logging
 if args.logging:
@@ -218,7 +220,7 @@ try:
                 'scheduler': scheduler.state_dict(),
             }
             ckpt_mgr.save(model, args, 0, others=opt_states, step=it)
-        if it % args.test_freq == 0 or it == args.max_iters:
+        if it % args.test_freq == 0 or it == args.max_iters or it in [10**i for i in range(7)]:
             test(it)
         it += 1
 
