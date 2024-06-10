@@ -1,17 +1,22 @@
+import argparse
+import math
 import os
 import time
-import math
-import argparse
+
 import torch
 from tqdm.auto import tqdm
 
+from evaluation import *
+from models.flow import add_spectral_norm, spectral_norm_power_iteration
+from models.vae_flow import *
+from models.vae_gaussian import *
+from utils.data import *
 from utils.dataset import *
 from utils.misc import *
-from utils.data import *
-from models.vae_gaussian import *
-from models.vae_flow import *
-from models.flow import add_spectral_norm, spectral_norm_power_iteration
-from evaluation import *
+
+
+
+
 
 def normalize_point_clouds(pcs, mode, logger):
     if mode is None:
@@ -38,16 +43,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default='./pretrained/24000it.pt')
 parser.add_argument('--categories', type=str_list, default=['airplane'])
 parser.add_argument('--save_dir', type=str, default='./results')
-parser.add_argument('--device', type=str, default='cuda')
+# parser.add_argument('--device', type=str, default='cuda')
+parser.add_argument('--device', type=str, default='cpu')
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--batch_size', type=int, default=4)
 # Sampling
 parser.add_argument('--sample_num_points', type=int, default=2048)
 parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
-parser.add_argument('--seed', type=int, default=9988)
+# parser.add_argument('--seed', type=int, default=9988)
+parser.add_argument('--seed', type=int, default=42)
 args = parser.parse_args()
-
 
 # Logging
 save_dir = os.path.join(args.save_dir, 'GEN_Ours_%s_%d' % ('_'.join(args.categories), int(time.time())) )
@@ -58,8 +64,12 @@ for k, v in vars(args).items():
     logger.info('[ARGS::%s] %s' % (k, repr(v)))
 
 # Checkpoint
-ckpt = torch.load(args.ckpt)
+# ckpt = torch.load(args.ckpt)
+# Checkpoint
+ckpt = torch.load(args.ckpt, map_location=torch.device('cpu'))
+
 seed_all(args.seed)
+
 
 # Datasets and loaders
 logger.info('Loading datasets...')
@@ -70,6 +80,7 @@ test_dset = ShapeNetCore(
     scale_mode=args.normalize,
 )
 test_loader = DataLoader(test_dset, batch_size=args.batch_size, num_workers=0)
+
 
 # Model
 logger.info('Loading model...')
@@ -82,15 +93,10 @@ logger.info(repr(model))
 #     add_spectral_norm(model, logger=logger)
 model.load_state_dict(ckpt['state_dict'])
 
-# Reference Point Clouds
-ref_pcs = []
-for i, data in enumerate(test_dset):
-    ref_pcs.append(data['pointcloud'].unsqueeze(0))
-ref_pcs = torch.cat(ref_pcs, dim=0)
 
-# Generate Point Clouds
+
 gen_pcs = []
-for i in tqdm(range(0, math.ceil(len(test_dset) / args.batch_size)), 'Generate'):
+for i in tqdm(range(1), 'Generate'):
     with torch.no_grad():
         z = torch.randn([args.batch_size, ckpt['args'].latent_dim]).to(args.device)
         x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
@@ -99,16 +105,57 @@ gen_pcs = torch.cat(gen_pcs, dim=0)[:len(test_dset)]
 if args.normalize is not None:
     gen_pcs = normalize_point_clouds(gen_pcs, mode=args.normalize, logger=logger)
 
-# Save
-logger.info('Saving point clouds...')
-np.save(os.path.join(save_dir, 'out.npy'), gen_pcs.numpy())
 
-# Compute metrics
-with torch.no_grad():
-    results = compute_all_metrics(gen_pcs.to(args.device), ref_pcs.to(args.device), args.batch_size)
-    results = {k:v.item() for k, v in results.items()}
-    jsd = jsd_between_point_cloud_sets(gen_pcs.cpu().numpy(), ref_pcs.cpu().numpy())
-    results['jsd'] = jsd
 
-for k, v in results.items():
-    logger.info('%s: %.12f' % (k, v))
+
+
+
+
+
+
+
+
+
+# def visualize_point_cloud(point_cloud):
+#     # Convert tensor to numpy array
+#     point_cloud_np = point_cloud.numpy()
+
+#     # Create an Open3D point cloud object
+#     pcd = o3d.geometry.PointCloud()
+
+#     # Assign points
+#     pcd.points = o3d.utility.Vector3dVector(point_cloud_np)
+
+#     # Visualize
+#     o3d.visualization.draw_geometries([pcd])
+
+print(gen_pcs)
+
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def visualize_point_cloud_matplotlib(point_cloud):
+    point_cloud_np = point_cloud.numpy()
+    
+    x = point_cloud_np[:, 0]
+    y = point_cloud_np[:, 1]
+    z = point_cloud_np[:, 2]
+    
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(x, y, z, c=z, cmap='cool', marker='o')
+    
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    
+    plt.show()
+
+# Example usage
+for pc in gen_pcs:
+    visualize_point_cloud_matplotlib(pc)
+
+
+
+# visualize_point_cloud(gen_pcs[0])  # Visualize the first generated point cloud

@@ -19,13 +19,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 parser = argparse.ArgumentParser()
 # Model arguments
-parser.add_argument('--num_classes', type=int, default=55)  # Assuming 2 classes: airplane and chair
+parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
 parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
 # parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
-parser.add_argument('--categories', type=str_list, default=['all'])
+#parser.add_argument('--categories', type=str_list, default=['all'])
+parser.add_argument('--categories', type=str_list, default=['sofa', 'chair'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=256)
 parser.add_argument('--val_batch_size', type=int, default=128)
@@ -122,8 +123,8 @@ scheduler = get_linear_scheduler(
 criterion = torch.nn.CrossEntropyLoss()
 # Define a label mapping
 if args.num_classes == 2: 
-    label_mapping = {'airplane': 0, 'chair': 1}
-    label_mapping = {args.categories[i] for i in range(args.categories)}
+    label_mapping = {'sofa': 0, 'chair': 1}
+#    label_mapping = {args.categories[i] for i in range(args.categories)}
 elif args.num_classes == 55:
     cate_all = ['airplane', 'bag', 'basket', 'bathtub', 'bed', 'bench', 'bottle', 'bowl', 'bus', 'cabinet', 'can', 'camera', 'cap', 'car', 'chair', 'clock', 'dishwasher', 'monitor', 'table', 'telephone', 'tin_can', 'tower', 'train', 'keyboard', 'earphone', 'faucet', 'file', 'guitar', 'helmet', 'jar', 'knife', 'lamp', 'laptop', 'speaker', 'mailbox', 'microphone', 'microwave', 'motorcycle', 'mug', 'piano', 'pillow', 'pistol', 'pot', 'printer', 'remote_control', 'rifle', 'rocket', 'skateboard', 'sofa', 'stove', 'vessel', 'washer', 'cellphone', 'birdhouse', 'bookshelf']
     label_mapping = {cate_all[i]: i for i in range(len(cate_all))}
