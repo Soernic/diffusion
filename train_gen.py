@@ -37,13 +37,13 @@ parser.add_argument('--spectral_norm', type=eval, default=False, choices=[True, 
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
+parser.add_argument('--categories', type=str_list, default='airplane')
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=64)
 
 # Optimizer and scheduler
-parser.add_argument('--lr', type=float, default=2e-3)
+parser.add_argument('--lr', type=float, default=5e-4)
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--max_grad_norm', type=float, default=10)
 parser.add_argument('--end_lr', type=float, default=1e-4)
@@ -143,16 +143,15 @@ def train(it):
     orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
     optimizer.step()
     scheduler.step()
-
-    if it % 50 == 0:
+    if it % 100 == 0:
         logger.info('[Train] Iter %04d | Loss %.6f | Grad %.4f | KLWeight %.4f' % (
             it, loss.item(), orig_grad_norm, kl_weight
         ))
-    writer.add_scalar('train/loss', loss, it)
-    writer.add_scalar('train/kl_weight', kl_weight, it)
-    writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], it)
-    writer.add_scalar('train/grad_norm', orig_grad_norm, it)
-    writer.flush()
+        writer.add_scalar('train/loss', loss, it)
+        writer.add_scalar('train/kl_weight', kl_weight, it)
+        writer.add_scalar('train/lr', optimizer.param_groups[0]['lr'], it)
+        writer.add_scalar('train/grad_norm', orig_grad_norm, it)
+        writer.flush()
 
 def validate_inspect(it):
     z = torch.randn([args.num_samples, args.latent_dim]).to(args.device)

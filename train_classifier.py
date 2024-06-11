@@ -20,6 +20,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 parser = argparse.ArgumentParser()
 # Model arguments
 parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
+parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
 parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
