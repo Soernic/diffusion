@@ -240,26 +240,7 @@ class Diffusion:
         return model
        
 
-    def sample(self) -> list:
-        self.pcs = []
-        for i in tqdm(range(self.num_batches), 'Sampling...'):
-            with torch.no_grad():
-                z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
-                x = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility)
-                self.pcs.append(x.detach().cpu())
-        self.pcs = torch.cat(self.pcs, dim=0)  # [:len(test_dset)] we don't need this right?
-        # print(self.pcs[0])
-        
-        if args.normalize is not None:
-            # TODO: move normalize to be part of this class
-            self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
-
-        # Now, conver them to pointcloud objects so they are formatted right
-        self.pcs = [PointCloud(pc) for pc in self.pcs]
-        return self.pcs
-    
-
-    def sample_variant(self, classifier=None, desired_class=None, s=1) -> list:
+    def sample(self, classifier=None, desired_class=None, s=1) -> list:
         self.pcs = []
         for i in range(self.num_batches):
             z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
@@ -338,7 +319,7 @@ def experiment(s, num_clouds=10):
     pcs = list()
     preds = list()
     for i in tqdm(range(num_clouds), 'Generating clouds'):
-        pc = diffusion.sample_variant(
+        pc = diffusion.sample(
             classifier=classifier,
             desired_class=0,
             s=s
@@ -359,7 +340,7 @@ if __name__ == '__main__':
     for i in range(3):    
         classifier = Classifier(args)
         diffusion = Diffusion(args)
-        pc = diffusion.sample_variant(
+        pc = diffusion.sample(
             classifier=classifier,
             desired_class=0,
             s=s
