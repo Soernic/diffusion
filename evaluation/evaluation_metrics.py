@@ -10,18 +10,45 @@ from numpy.linalg import norm
 from tqdm.auto import tqdm
 
 
-_EMD_NOT_IMPL_WARNED = False
-def emd_approx(sample, ref):
-    global _EMD_NOT_IMPL_WARNED
-    emd = torch.zeros([sample.size(0)]).to(sample)
-    if not _EMD_NOT_IMPL_WARNED:
-        _EMD_NOT_IMPL_WARNED = True
-        print('\n\n[WARNING]')
-        print('  * EMD is not implemented due to GPU compatability issue.')
-        print('  * We will set all EMD to zero by default.')
-        print('  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py')
-        print('\n')
-    return emd
+import torch
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import cdist
+
+def wasserstein_distance(a, b):
+    """
+    Compute the Wasserstein distance (Earth Mover's Distance) between two point clouds.
+    
+    Args:
+        a (torch.Tensor): First point cloud of shape (batch_size, num_points, points_dim).
+        b (torch.Tensor): Second point cloud of shape (batch_size, num_points, points_dim).
+    
+    Returns:
+        tuple: Two tensors containing the Wasserstein distances for each batch.
+    """
+    a_np = a.numpy()
+    b_np = b.numpy()
+    batch_size, num_points, points_dim = a_np.shape
+    wasserstein_distances_a_to_b = torch.zeros((batch_size, num_points))
+
+    for i in range(batch_size):
+        # Extract the point clouds for the current batch
+        point_cloud_1 = a_np[i]
+        point_cloud_2 = b_np[i]
+
+        # Compute the pairwise distance matrix
+        distance_matrix = cdist(point_cloud_1, point_cloud_2, metric='euclidean')
+        
+        # Solve the optimal transport problem
+        row_ind, col_ind = linear_sum_assignment(distance_matrix)
+        
+        # Compute the Wasserstein distance for the current batch
+        wasserstein_dist_a_to_b = distance_matrix[row_ind, col_ind]
+        
+        # Store the distances in the results tensors
+        wasserstein_distances_a_to_b[i] = torch.tensor(wasserstein_dist_a_to_b)
+
+
+    return wasserstein_distances_a_to_b
 
 
 # Borrow from https://github.com/ThibaultGROUEIX/AtlasNet
