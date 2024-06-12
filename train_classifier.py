@@ -14,12 +14,12 @@ from evaluation import EMD_CD
 from models.classifier import *
 from models.autoencoder import *
 # Arguments
+from models.DGCNN import *
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 parser = argparse.ArgumentParser()
 # Model arguments
-parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
 parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
 parser.add_argument('--resume', type=str, default=None)
 
@@ -28,8 +28,8 @@ parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
 parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 # parser.add_argument('--categories', type=str_list, default=['all'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
-parser.add_argument('--train_batch_size', type=int, default=256)
-parser.add_argument('--val_batch_size', type=int, default=128)
+parser.add_argument('--train_batch_size', type=int, default=64)
+parser.add_argument('--val_batch_size', type=int, default=64)
 parser.add_argument('--rotate', type=eval, default=False, choices=[True, False])
 
 # Optimizer and scheduler
@@ -101,8 +101,11 @@ if args.resume is not None:
     ckpt = torch.load(args.resume)
     model = PointNet(k=args.num_classes, feature_transform=True).to(args.device)
     model.load_state_dict(ckpt['state_dict'])
+# else:
+#     model = PointNet(k=args.num_classes, feature_transform=True).to(args.device)
 else:
-    model = PointNet(k=args.num_classes, feature_transform=True).to(args.device)
+    model = DGCNN(k=20, num_classes=args.num_classes)
+
 logger.info(repr(model))
 
 

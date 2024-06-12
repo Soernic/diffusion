@@ -44,7 +44,7 @@ def normalize_point_clouds(pcs, mode, logger=None):
 # Arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/pointnet_classifier_two/classifier.pt')
+parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/PointNet_2024_06_11__17_47_33/ckpt_99.749373_120.pt')
 parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
@@ -78,6 +78,7 @@ class VariantDiffusionPoint(DiffusionPoint):
         classifier_output = classifier.predict_variant(x_t.permute(0, 2, 1), guidance=True)
         desired_output = classifier_output[:, desired_class]
         classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x_t, retain_graph=True)[0]
+        set_trace()
         mu_addition = s * sigma**2 * classifier_grad
         return mu_addition
     
