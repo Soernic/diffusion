@@ -124,8 +124,8 @@ class DiffusionPoint(Module):
         traj = {self.var_sched.num_steps: x_T}
         for t in range(self.var_sched.num_steps, 0, -1):
             z = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)
-            alpha = self.var_sched.alphas[t]
-            alpha_bar = self.var_sched.alpha_bars[t]
+            alpha = self.var_sched.alphas[t] # 1 - beta
+            alpha_bar = self.var_sched.alpha_bars[t] # cumprod(1 - beta)
             sigma = self.var_sched.get_sigmas(t, flexibility)
 
             c0 = 1.0 / torch.sqrt(alpha)

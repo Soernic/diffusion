@@ -25,7 +25,7 @@ def normalize_point_clouds(pcs, mode, logger=None):
         # logger.info('Will not normalize point clouds.')
         return pcs
     # logger.info('Normalization mode: %s' % mode)
-    for i in tqdm(range(pcs.size(0)), desc='Normalize'):
+    for i in range(pcs.size(0)):
         pc = pcs[i]
         if mode == 'shape_unit':
             shift = pc.mean(dim=0).reshape(1, 3)
@@ -48,7 +48,7 @@ parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/pointn
 parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
-parser.add_argument('--batch_size', type=int, default=4)
+parser.add_argument('--batch_size', type=int, default=1)
 parser.add_argument('--sample_num_points', type=int, default=2048)
 parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
 parser.add_argument('--seed', type=int, default=42)
@@ -60,7 +60,19 @@ args = parser.parse_args()
 class VariantDiffusionPoint(DiffusionPoint):
     def __init__(self, net, var_sched: VarianceSchedule):
         super().__init__(net, var_sched)
-        
+
+    def modify_e_theta(self, e_theta, x_t, classifier, desired_class, s, alpha_bar):
+        x_t.requires_grad = True
+        x_t = x_t.permute(0, 2, 1)
+        e_theta = e_theta.permute(0, 2, 1)
+        classifier_output = classifier.predict_variant(x_t, guidance=True)
+        desired_output = classifier_output[:, desired_class]
+        classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x_t, retain_graph=True)[0]
+        classifier_grad_scaled = s * classifier_grad
+        temp = e_theta - torch.sqrt(1 - alpha_bar) * classifier_grad_scaled
+        temp = temp.permute(0, 2, 1)
+        return temp
+
     def sample(
             self, 
             num_points, 
@@ -87,6 +99,11 @@ class VariantDiffusionPoint(DiffusionPoint):
             x_t = traj[t]
             beta = self.var_sched.betas[[t]*batch_size]
             e_theta = self.net(x_t, beta=beta, context=context)
+            
+            # Modify e_theta based on classifier guidance
+            if classifier is not None and desired_class is not None:
+                e_theta = self.modify_e_theta(e_theta, x_t, classifier, desired_class, s, alpha_bar)
+            
             x_next = c0 * (x_t - c1 * e_theta) + sigma * z
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.
@@ -97,13 +114,35 @@ class VariantDiffusionPoint(DiffusionPoint):
             return traj
         else:
             return traj[0]
-        
 
 class VariantFlowVAE(FlowVAE):
-    pass    
+    def __init__(self, args):
+        super().__init__(args)
+        self.args = args
+        self.encoder = PointNetEncoder(args.latent_dim)
+        self.flow = build_latent_flow(args)
+        self.diffusion = VariantDiffusionPoint(
+            net = PointwiseNet(point_dim=3, context_dim=args.latent_dim, residual=args.residual),
+            var_sched = VarianceSchedule(
+                num_steps=args.num_steps,
+                beta_1=args.beta_1,
+                beta_T=args.beta_T,
+                mode=args.sched_mode
+            )
+        )
 
 
+    def sample(self, w, num_points, flexibility, truncate_std=None, classifier=None, desired_class=None, s=1):
+        batch_size, _ = w.size()
+        if truncate_std is not None:
+            w = truncated_normal_(w, mean=0, std=1, trunc_std=truncate_std)
+        # Reverse: z <- w.
+        z = self.flow(w, reverse=True).view(batch_size, -1)
+        samples = self.diffusion.sample(num_points, context=z, flexibility=flexibility, classifier=classifier, desired_class=desired_class, s=1)
+        return samples
+    
 
+    
 
 
 class Classifier:
@@ -139,6 +178,31 @@ class Classifier:
             outputs = self.model(x)
         return outputs
     
+    def predict_variant(self, x, guidance=True):
+        # TODO: adapt above function to combine these later if it makes sense
+        # Ensure x is a tensor and move it to the correct device
+        if not isinstance(x, torch.Tensor):
+            x = torch.tensor(x, dtype=torch.float32)
+        x = x.to(self.device)
+
+        # Add a batch dimension if x doesn't have one
+        if len(x.shape) == 2:
+            x = x.unsqueeze(0)
+
+        # Only track gradients if we're doing guidance.
+        if guidance:
+            outputs = self.model(x)
+        else:
+            with torch.no_grad():
+                outputs = self.model(x)
+        
+        # If the model returns more than one output, we take the first one (logits)
+        if isinstance(outputs, tuple):
+            outputs = outputs[0]
+        
+        return outputs        
+    
+
     def __repr__(self):
         return f'Classifier for classes {self.classes}'
     
@@ -156,7 +220,8 @@ class Diffusion:
     def load_model(self):
         self.ckpt = torch.load(self.path, map_location=torch.device(self.args.device))
         # TODO: exchange for VariantFlowVAE()
-        model = FlowVAE(self.ckpt['args']).to(self.args.device)
+        # model = FlowVAE(self.ckpt['args']).to(self.args.device)
+        model = VariantFlowVAE(self.ckpt['args']).to(self.args.device)
         model.load_state_dict(self.ckpt['state_dict']) 
         return model
        
@@ -175,9 +240,22 @@ class Diffusion:
             # TODO: move normalize to be part of this class
             self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
 
-        # Convert it to a shape that the classifier understands
-        # self.pcs = self.pcs.permute(0, 2, 1)
-        # print(f'Shape inside function: {self.pcs.shape}')
+        # Now, conver them to pointcloud objects so they are formatted right
+        self.pcs = [PointCloud(pc) for pc in self.pcs]
+        return self.pcs
+    
+
+    def sample_variant(self, classifier=None, desired_class=None, s=1) -> list:
+        self.pcs = []
+        for i in range(self.num_batches):
+            z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
+            x = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility, classifier=classifier, desired_class=desired_class, s=1)
+            self.pcs.append(x.detach().cpu())
+        self.pcs = torch.cat(self.pcs, dim=0)  # [:len(test_dset)] we don't need this right?
+        
+        if args.normalize is not None:
+            # TODO: move normalize to be part of this class
+            self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
 
         # Now, conver them to pointcloud objects so they are formatted right
         self.pcs = [PointCloud(pc) for pc in self.pcs]
@@ -201,20 +279,59 @@ class PointCloud:
         return predicted
         
 
+def experiment(s, num_clouds=10):
+    classifier = Classifier(args)
+    diffusion = Diffusion(args)    
+
+    pcs = list()
+    preds = list()
+    for i in tqdm(range(num_clouds), 'Generating clouds'):
+        pc = diffusion.sample_variant(
+            classifier=classifier,
+            desired_class=0,
+            s=s
+        )[0]
+        pcs.append(pc)
+        preds.append(pc.classify(classifier))
+
+    print(f's: {s} | airplanes: {preds.count('airplane')}')
+
 
 def main():
     pass
 
 
 if __name__ == '__main__':
-    classifier = Classifier(args)
-    diffusion = Diffusion(args)
-    pcs = diffusion.sample()
+    s_vals = [5]
+    for s in s_vals:
+        experiment(s, num_clouds = 500)
 
-    labels = list()
-    for pc in pcs:
-        labels.append(pc.classify(classifier))
 
-    print(f'Number of airplanes: {labels.count('airplane')}')
-    print(f'Number of chairs: {labels.count('chair')}')
-        
+
+
+
+
+
+    # classifier = Classifier(args)
+    # diffusion = Diffusion(args)
+    # pcs = diffusion.sample()
+
+ 
+
+
+
+
+    # x = pcs[0].pc
+    # x.requires_grad = True
+    # # x = torch.randn(1, 3, 2048, requires_grad=True)
+    # print(f'Actual label: {pcs[0].classify(classifier)}')
+
+    # outputs = classifier.predict_variant(x, guidance=True)
+    # desired_class = 0 # TODO: add mask_inv method that maps value to key in classifier.mask dict
+    # desired_output = outputs[:, desired_class] # THis is just a sort of squeeze and then selecting the right class
+    # classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x)[0]
+    # grad_list = classifier_grad.squeeze(0).flatten()
+    # print(f'Total number of points: {len(grad_list)}')
+    # print(f'Number of non-zero ele: {sum(grad_list == 0)}')
+    # print(f'Percentage of zero ele: {(100 * sum(grad_list == 0) / len(grad_list)):.2f}%')
+    # print(classifier_grad.shape)
