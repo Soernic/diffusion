@@ -72,6 +72,15 @@ class VariantDiffusionPoint(DiffusionPoint):
         temp = e_theta - torch.sqrt(1 - alpha_bar) * classifier_grad_scaled
         temp = temp.permute(0, 2, 1)
         return temp
+    
+    def get_mu_addition(self, x_t, sigma, classifier, desired_class, s):
+        x_t.requires_grad = True
+        classifier_output = classifier.predict_variant(x_t.permute(0, 2, 1), guidance=True)
+        desired_output = classifier_output[:, desired_class]
+        classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x_t, retain_graph=True)[0]
+        mu_addition = s * sigma**2 * classifier_grad
+        return mu_addition
+    
 
     def sample(
             self, 
@@ -100,11 +109,15 @@ class VariantDiffusionPoint(DiffusionPoint):
             beta = self.var_sched.betas[[t]*batch_size]
             e_theta = self.net(x_t, beta=beta, context=context)
             
+            # set_trace()
+            mu = c0 * (x_t - c1 * e_theta)
             # Modify e_theta based on classifier guidance
             if classifier is not None and desired_class is not None:
-                e_theta = self.modify_e_theta(e_theta, x_t, classifier, desired_class, s, alpha_bar)
-            
-            x_next = c0 * (x_t - c1 * e_theta) + sigma * z
+                mu_addition = self.get_mu_addition(x_t=x_t, sigma=sigma, classifier=classifier, desired_class=desired_class, s=s)
+                mu += mu_addition                            
+
+            x_next = mu + sigma * z
+            assert x_next.requires_grad == True
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.
             if not ret_traj:
@@ -266,6 +279,7 @@ class PointCloud:
     def __init__(self, pc):
         self.pc = pc
         self.format_for_classifier()
+        self.save_path = './pcs'
         # print(f'Shape after formatting in PC object: {self.pc.shape}')
 
     def format_for_classifier(self):
@@ -277,6 +291,13 @@ class PointCloud:
         _, predicted = torch.max(outputs.data, 1)
         predicted = classifier.mask[predicted[0].item()]
         return predicted
+    
+    def save(self, name):
+        # TODO: Write out function that saves the point clouds in some format. 
+        os.makedirs(self.save_path, exist_ok=True)
+        file_path = os.path.join(self.save_path, name + '.npy')
+        np.save(file_path, self.pc.numpy())
+        print(f'Point cloud saved to {file_path}')
         
 
 def experiment(s, num_clouds=10):
@@ -302,9 +323,19 @@ def main():
 
 
 if __name__ == '__main__':
-    s_vals = [5]
-    for s in s_vals:
-        experiment(s, num_clouds = 500)
+    for i in range(2):    
+        classifier = Classifier(args)
+        diffusion = Diffusion(args)
+        pc = diffusion.sample_variant(
+            classifier=classifier,
+            desired_class=0,
+            s=1
+        )[0]
+        pc.save(f'test_{i}')
+
+    # s_vals = [1, 10, 100, 1000, 10000]
+    # for s in s_vals:
+    #     experiment(s, num_clouds = 500)
 
 
 

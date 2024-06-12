@@ -65,12 +65,42 @@ seed_all(args.seed)
 
 torch.cuda.empty_cache()
 
+
+class VariantCheckpointManager(CheckpointManager):
+    """
+    Modifying save function to allow for saving "step" as well, which is the iterations
+    """
+
+    def save(self, model, args, score, others=None, step=None):
+
+        if step is None:
+            fname = 'ckpt_%.6f_.pt' % float(score)
+        else:
+            fname = 'ckpt_%.6f_%d.pt' % (float(score), int(step))
+        path = os.path.join(self.save_dir, fname)
+
+        torch.save({
+            'args': args,
+            'state_dict': model.state_dict(),
+            'others': others,
+            'step': step,
+        }, path)
+
+        self.ckpts.append({
+            'score': score,
+            'file': fname
+        })
+
+        return True
+
+
 # Logging
 if args.logging:
     log_dir = get_new_log_dir(args.log_root, prefix='GEN_', postfix='_' + args.tag if args.tag is not None else '')
     logger = get_logger('train', log_dir)
     writer = torch.utils.tensorboard.SummaryWriter(log_dir)
-    ckpt_mgr = CheckpointManager(log_dir)
+    # ckpt_mgr = CheckpointManager(log_dir)
+    ckpt_mgr = VariantCheckpointManager(log_dir)
     log_hyperparams(writer, args)
 else:
     logger = get_logger('train', None)
