@@ -44,9 +44,8 @@ def normalize_point_clouds(pcs, mode, logger=None):
 # Arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-# parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/pointnet_classifier_two/classifier.pt')
-parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/meanpool.pt')
-parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
+parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
+parser.add_argument('--categories', type=str_list, default=['all'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--batch_size', type=int, default=1)
@@ -54,13 +53,15 @@ parser.add_argument('--sample_num_points', type=int, default=2048)
 parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
+parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
 args = parser.parse_args()
 
 
 
 class VariantDiffusionPoint(DiffusionPoint):
-    def __init__(self, net, var_sched: VarianceSchedule):
+    def __init__(self, net, var_sched: VarianceSchedule, ret_traj=False):
         super().__init__(net, var_sched)
+        self.ret_traj = ret_traj
 
     def modify_e_theta(self, e_theta, x_t, classifier, desired_class, s, alpha_bar):
         x_t.requires_grad = True
@@ -89,14 +90,14 @@ class VariantDiffusionPoint(DiffusionPoint):
             context, 
             point_dim=3, 
             flexibility=0.0, 
-            ret_traj=False,
             classifier=None,
             desired_class=None,
-            s=1
+            s=1,
             ):
         batch_size = context.size(0)
         x_T = torch.randn([batch_size, num_points, point_dim]).to(context.device)
         traj = {self.var_sched.num_steps: x_T}
+
         for t in range(self.var_sched.num_steps, 0, -1):
             z = torch.randn_like(x_T) if t > 1 else torch.zeros_like(x_T)
             alpha = self.var_sched.alphas[t]
@@ -121,16 +122,16 @@ class VariantDiffusionPoint(DiffusionPoint):
             assert x_next.requires_grad == True
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.
-            if not ret_traj:
+            if not self.ret_traj:
                 del traj[t]
         
-        if ret_traj:
+        if self.ret_traj:
             return traj
         else:
             return traj[0]
 
 class VariantFlowVAE(FlowVAE):
-    def __init__(self, args):
+    def __init__(self, args, ret_traj):
         super().__init__(args)
         self.args = args
         self.encoder = PointNetEncoder(args.latent_dim)
@@ -142,11 +143,12 @@ class VariantFlowVAE(FlowVAE):
                 beta_1=args.beta_1,
                 beta_T=args.beta_T,
                 mode=args.sched_mode
-            )
+            ),
+            ret_traj=ret_traj
         )
 
 
-    def sample(self, w, num_points, flexibility, truncate_std=None, classifier=None, desired_class=None, s=1):
+    def sample(self, w, num_points, flexibility, truncate_std=None, classifier=None, desired_class=None, s=1, save_sample=False):
         batch_size, _ = w.size()
         if truncate_std is not None:
             w = truncated_normal_(w, mean=0, std=1, trunc_std=truncate_std)
@@ -163,6 +165,8 @@ class Classifier:
     def __init__(self, args):
         
         self.classes = args.categories
+        if self.classes == ['all']:
+            self.classes = ['airplane', 'bag', 'basket', 'bathtub', 'bed', 'bench', 'bottle', 'bowl', 'bus', 'cabinet', 'can', 'camera', 'cap', 'car', 'chair', 'clock', 'dishwasher', 'monitor', 'table', 'telephone', 'tin_can', 'tower', 'train', 'keyboard', 'earphone', 'faucet', 'file', 'guitar', 'helmet', 'jar', 'knife', 'lamp', 'laptop', 'speaker', 'mailbox', 'microphone', 'microwave', 'motorcycle', 'mug', 'piano', 'pillow', 'pistol', 'pot', 'printer', 'remote_control', 'rifle', 'rocket', 'skateboard', 'sofa', 'stove', 'vessel', 'washer', 'cellphone', 'birdhouse', 'bookshelf']
         self.device = args.device
         self.model = self.get_classifier(args.ckpt_classifier)
         self.mask = {i: self.classes[i] for i in range(len(self.classes))} # translator for labels 0, 1, ... to actual labels airplane, chair, ...
@@ -225,6 +229,7 @@ class Classifier:
 class Diffusion:
     def __init__(self, args):
         self.args = args
+        self.ret_traj = args.ret_traj
         self.path = args.ckpt
         self.batch_size = args.batch_size
         self.num_batches = args.num_batches
@@ -235,26 +240,46 @@ class Diffusion:
         self.ckpt = torch.load(self.path, map_location=torch.device(self.args.device))
         # TODO: exchange for VariantFlowVAE()
         # model = FlowVAE(self.ckpt['args']).to(self.args.device)
-        model = VariantFlowVAE(self.ckpt['args']).to(self.args.device)
+        model = VariantFlowVAE(self.ckpt['args'], self.ret_traj).to(self.args.device)
         model.load_state_dict(self.ckpt['state_dict']) 
         return model
        
 
     def sample(self, classifier=None, desired_class=None, s=1) -> list:
         self.pcs = []
-        for i in range(self.num_batches):
-            z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
-            x = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility, classifier=classifier, desired_class=desired_class, s=1)
-            self.pcs.append(x.detach().cpu())
-        self.pcs = torch.cat(self.pcs, dim=0)  # [:len(test_dset)] we don't need this right?
-        
-        if args.normalize is not None:
-            # TODO: move normalize to be part of this class
-            self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
+        if not self.ret_traj:
+            for i in range(self.num_batches):
+                z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
+                x = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility, classifier=classifier, desired_class=desired_class, s=1)
+                self.pcs.append(x.detach().cpu())
+            self.pcs = torch.cat(self.pcs, dim=0)  # [:len(test_dset)] we don't need this right?
+            
+            if args.normalize is not None:
+                # TODO: move normalize to be part of this class
+                self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
 
-        # Now, conver them to pointcloud objects so they are formatted right
-        self.pcs = [PointCloud(pc) for pc in self.pcs]
-        return self.pcs
+            # Now, conver them to pointcloud objects so they are formatted right
+            self.pcs = [PointCloud(pc) for pc in self.pcs]
+            return self.pcs
+        
+        else:
+            for i in range(self.num_batches):
+                z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
+                traj = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility, classifier=classifier, desired_class=desired_class, s=1)            
+                # In this case traj is a dictonary
+                traj_list = self.dict_to_list(traj)
+            
+            # Normalization? Probably not.. It would be different for each could and would have to be done for the entire trajectory
+            self.pcs = [PointCloud(pc) for pc in traj_list]
+            pc_batch = PointCloudBatch()
+            for pc in self.pcs:
+                pc_batch.append(pc)
+
+            return pc_batch
+
+    def dict_to_list(self, traj):
+        return [traj[i].detach().cpu() for i in range(len(traj.keys()))]
+
     
 
 class PointCloud:
@@ -304,11 +329,21 @@ class PointCloudBatch:
             self.gradient_batch_list.append((pc, gradients))
 
     def format(self):
-        return [pc.numpy() for pc in self.batch_list]
+        return np.stack([pc.pc.numpy().squeeze(0) for pc in self.batch_list])
     
     def format_with_gradients(self):
         # TODO: ... Figure out what format is most useful here after successfully doing the plot.
         pass
+
+    def save(self, name):
+        # TODO: save as npy file
+        save_path = './trajectories'
+        os.makedirs(save_path, exist_ok=True)
+        file_path = os.path.join(save_path, name + '.npy')
+        np.save(file_path, self.format())
+        print(f'PointCloudBatch saved to {file_path}')
+        
+
 
 
 
@@ -331,28 +366,29 @@ def experiment(s, num_clouds=10):
 
 
 
-def main():
-    pass
-
-
 if __name__ == '__main__':
-    s = 1
-    for i in range(3):    
-        classifier = Classifier(args)
-        diffusion = Diffusion(args)
-        pc = diffusion.sample(
-            classifier=classifier,
-            desired_class=0,
-            s=s
-        )[0]
-        label = pc.classify(classifier)
-        pc.save(f'{label}_{s}_{i}_meanpool')
+    # s = 1
+    # for i in range(3):    
+    #     classifier = Classifier(args)
+    #     diffusion = Diffusion(args)
+    #     pc = diffusion.sample(
+    #         classifier=classifier,
+    #         desired_class=0,
+    #         s=s
+    #     )[0]
+    #     label = pc.classify(classifier)
+    #     pc.save(f'{label}_{s}_{i}_all')
 
-    # s_vals = [1, 10, 100, 1000, 10000]
+    # s_vals = [1, 10, 100]
     # for s in s_vals:
-    #     experiment(s, num_clouds = 500)
+    #     experiment(s, num_clouds = 50)
 
-
+    classifier = Classifier(args)
+    diffusion = Diffusion(args)
+    pc_batch = diffusion.sample()
+    print(pc_batch)
+    pc_batch.save('test')
+    # set_trace()
 
 
 
