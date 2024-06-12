@@ -44,7 +44,8 @@ def normalize_point_clouds(pcs, mode, logger=None):
 # Arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/pointnet_classifier_two/classifier.pt')
+# parser.add_argument('--ckpt_classifier', type=str, default='logs_pointnet/pointnet_classifier_two/classifier.pt')
+parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/meanpool.pt')
 parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
@@ -286,7 +287,6 @@ class PointCloud:
         self.pc = self.pc.transpose(0, 1).unsqueeze(0) # switching around first and second dim and then adding one in front
 
     def classify(self, classifier: Classifier):
-        # TODO: implement classification code
         outputs, _ = classifier.predict(self.pc)
         _, predicted = torch.max(outputs.data, 1)
         predicted = classifier.mask[predicted[0].item()]
@@ -299,6 +299,37 @@ class PointCloud:
         np.save(file_path, self.pc.numpy())
         print(f'Point cloud saved to {file_path}')
         
+
+class PointCloudBatch:
+    """
+    Helper class for animating a point cloud through its generation process
+    You can start it empty or with a PointCloud object and then gradually update it through the sampling process. 
+    With the format function you can ready it for animation
+    """
+
+    def __init__(self, gradients=False):
+        self.batch_list = list() # Maybe I can concatenate them into a tensor instead?
+        if gradients: 
+            self.gradient_batch_list = list() # with tuples like [(PointCloud, gradients), (PointCloud, gradients), ...]
+
+    def append(self, pc: PointCloud, gradients=None):
+        if not gradients: 
+            assert isinstance(pc, PointCloud)
+            self.batch_list.append(pc)
+        else:
+            assert isinstance(pc, PointCloud)
+            # assert isinstance(gradients, ...? what is that class?)
+            # assert pc.shape == (1, 3, 2048)?
+            self.gradient_batch_list.append((pc, gradients))
+
+    def format(self):
+        return [pc.numpy() for pc in self.batch_list]
+    
+    def format_with_gradients(self):
+        # TODO: ... Figure out what format is most useful here after successfully doing the plot.
+        pass
+
+
 
 def experiment(s, num_clouds=10):
     classifier = Classifier(args)
@@ -318,20 +349,23 @@ def experiment(s, num_clouds=10):
     print(f's: {s} | airplanes: {preds.count('airplane')}')
 
 
+
 def main():
     pass
 
 
 if __name__ == '__main__':
-    for i in range(2):    
+    s = 1
+    for i in range(3):    
         classifier = Classifier(args)
         diffusion = Diffusion(args)
         pc = diffusion.sample_variant(
             classifier=classifier,
             desired_class=0,
-            s=1
+            s=s
         )[0]
-        pc.save(f'test_{i}')
+        label = pc.classify(classifier)
+        pc.save(f'{label}_{s}_{i}_meanpool')
 
     # s_vals = [1, 10, 100, 1000, 10000]
     # for s in s_vals:
