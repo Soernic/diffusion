@@ -329,7 +329,10 @@ class PointCloudBatch:
             self.gradient_batch_list.append((pc, gradients))
 
     def format(self):
-        return np.stack([pc.pc.numpy().squeeze(0) for pc in self.batch_list])
+        # return np.stack([pc.pc.numpy().squeeze(0) for pc in self.batch_list])
+        temp = [pc.pc.numpy().squeeze(0) for pc in self.batch_list]
+        return np.stack(list(reversed(temp)))
+
     
     def format_with_gradients(self):
         # TODO: ... Figure out what format is most useful here after successfully doing the plot.
@@ -386,7 +389,7 @@ if __name__ == '__main__':
     classifier = Classifier(args)
     diffusion = Diffusion(args)
     pc_batch = diffusion.sample()
-    print(pc_batch)
+    # print(pc_batch)
     pc_batch.save('test')
     # set_trace()
 
