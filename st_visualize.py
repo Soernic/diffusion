@@ -44,6 +44,7 @@ def visualize_point_cloud(point_cloud):
     fig = go.Figure(data=[scatter], layout=layout)
     return fig
 
+
 # Streamlit UI
 st.title("Point Cloud Viewer")
 st.write('test')
