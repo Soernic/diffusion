@@ -14,41 +14,71 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-def wasserstein_distance(a, b):
+def sinkhorn_distance(a, b, eps=0.01, max_iter=100):
     """
-    Compute the Wasserstein distance (Earth Mover's Distance) between two point clouds.
-    
+    Compute the Sinkhorn distance between two point clouds.
+
+    Args:
+        a (torch.Tensor): First point cloud of shape (num_points, points_dim).
+        b (torch.Tensor): Second point cloud of shape (num_points, points_dim).
+        eps (float): Regularization parameter.
+        max_iter (int): Maximum number of iterations.
+
+    Returns:
+        float: Sinkhorn distance between the point clouds.
+    """
+    n = a.size(0)
+    m = b.size(0)
+
+    # Compute the pairwise distance matrix
+    C = torch.cdist(a, b, p=2)
+
+    # Initialize dual variables
+    u = torch.zeros(n, device=a.device)
+    v = torch.zeros(m, device=a.device)
+
+    # Kernel matrix
+    K = torch.exp(-C / eps)
+
+    for _ in range(max_iter):
+        u = eps * (torch.log(torch.ones(n, device=a.device) / n) - torch.logsumexp(v.unsqueeze(0) - C / eps, dim=1)) + u
+        v = eps * (torch.log(torch.ones(m, device=a.device) / m) - torch.logsumexp(u.unsqueeze(1) - C / eps, dim=0)) + v
+
+    # Compute Sinkhorn distance
+    U = u.unsqueeze(1)
+    V = v.unsqueeze(0)
+    transport_matrix = torch.exp((U + V - C) / eps)
+    sinkhorn_distance = torch.sum(transport_matrix * C)
+
+    return sinkhorn_distance.item()
+
+def emd_approx(a, b):
+    """
+    Compute the Wasserstein distance (Earth Mover's Distance) between two point clouds using the Sinkhorn approximation.
+
     Args:
         a (torch.Tensor): First point cloud of shape (batch_size, num_points, points_dim).
         b (torch.Tensor): Second point cloud of shape (batch_size, num_points, points_dim).
-    
+
     Returns:
-        tuple: Two tensors containing the Wasserstein distances for each batch.
+        torch.Tensor: A tensor containing the Wasserstein distances for each batch.
     """
-    a_np = a.numpy()
-    b_np = b.numpy()
-    batch_size, num_points, points_dim = a_np.shape
-    wasserstein_distances_a_to_b = torch.zeros((batch_size, num_points))
+
+    batch_size, num_points, points_dim = a.shape
+    wasserstein_distances = torch.zeros(batch_size, device=a.device)
 
     for i in range(batch_size):
         # Extract the point clouds for the current batch
-        point_cloud_1 = a_np[i]
-        point_cloud_2 = b_np[i]
+        point_cloud_1 = a[i]
+        point_cloud_2 = b[i]
 
-        # Compute the pairwise distance matrix
-        distance_matrix = cdist(point_cloud_1, point_cloud_2, metric='euclidean')
+        # Compute the Sinkhorn distance for the current batch
+        wasserstein_distance = sinkhorn_distance(point_cloud_1, point_cloud_2)
         
-        # Solve the optimal transport problem
-        row_ind, col_ind = linear_sum_assignment(distance_matrix)
-        
-        # Compute the Wasserstein distance for the current batch
-        wasserstein_dist_a_to_b = distance_matrix[row_ind, col_ind]
-        
-        # Store the distances in the results tensors
-        wasserstein_distances_a_to_b[i] = torch.tensor(wasserstein_dist_a_to_b)
+        # Store the distance in the results tensor
+        wasserstein_distances[i] = wasserstein_distance
 
-
-    return wasserstein_distances_a_to_b
+    return wasserstein_distances
 
 
 # Borrow from https://github.com/ThibaultGROUEIX/AtlasNet
@@ -221,11 +251,11 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size):
         "%s-CD" % k: v for k, v in res_cd.items()
     })
     
-    ## EMD
-    # res_emd = lgan_mmd_cov(M_rs_emd.t())
-    # results.update({
-    #     "%s-EMD" % k: v for k, v in res_emd.items()
-    # })
+    # EMD
+    res_emd = lgan_mmd_cov(M_rs_emd.t())
+    results.update({
+        "%s-EMD" % k: v for k, v in res_emd.items()
+    })
 
     for k, v in results.items():
         print('[%s] %.8f' % (k, v.item()))
@@ -239,11 +269,11 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size):
     results.update({
         "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
     })
-    ## EMD
-    # one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
-    # results.update({
-    #     "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
-    # })
+    # EMD
+    one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
+    results.update({
+        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
+    })
 
     return results
 
