@@ -14,71 +14,43 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-def sinkhorn_distance(a, b, eps=0.01, max_iter=100):
+def emd_approx(a, b, eps=0.01, max_iter=10):
     """
-    Compute the Sinkhorn distance between two point clouds.
+    Compute the Sinkhorn distance between two point clouds using batched operations.
 
     Args:
-        a (torch.Tensor): First point cloud of shape (num_points, points_dim).
-        b (torch.Tensor): Second point cloud of shape (num_points, points_dim).
+        a (torch.Tensor): First point cloud of shape (batch_size, num_points, points_dim).
+        b (torch.Tensor): Second point cloud of shape (batch_size, num_points, points_dim).
         eps (float): Regularization parameter.
         max_iter (int): Maximum number of iterations.
 
     Returns:
-        float: Sinkhorn distance between the point clouds.
+        torch.Tensor: Sinkhorn distances for each pair of point clouds in the batch.
     """
-    n = a.size(0)
-    m = b.size(0)
+    batch_size, n, _ = a.shape
+    _, m, _ = b.shape
 
     # Compute the pairwise distance matrix
-    C = torch.cdist(a, b, p=2)
+    C = torch.cdist(a, b, p=2)  # Shape: (batch_size, n, m)
 
     # Initialize dual variables
-    u = torch.zeros(n, device=a.device)
-    v = torch.zeros(m, device=a.device)
+    u = torch.zeros(batch_size, n, device=a.device)
+    v = torch.zeros(batch_size, m, device=a.device)
 
     # Kernel matrix
     K = torch.exp(-C / eps)
 
     for _ in range(max_iter):
-        u = eps * (torch.log(torch.ones(n, device=a.device) / n) - torch.logsumexp(v.unsqueeze(0) - C / eps, dim=1)) + u
-        v = eps * (torch.log(torch.ones(m, device=a.device) / m) - torch.logsumexp(u.unsqueeze(1) - C / eps, dim=0)) + v
+        u = eps * (torch.log(torch.ones(batch_size, n, device=a.device) / n) - torch.logsumexp(v.unsqueeze(1) - C / eps, dim=2)) + u
+        v = eps * (torch.log(torch.ones(batch_size, m, device=a.device) / m) - torch.logsumexp(u.unsqueeze(2) - C / eps, dim=1)) + v
 
     # Compute Sinkhorn distance
-    U = u.unsqueeze(1)
-    V = v.unsqueeze(0)
+    U = u.unsqueeze(2)
+    V = v.unsqueeze(1)
     transport_matrix = torch.exp((U + V - C) / eps)
-    sinkhorn_distance = torch.sum(transport_matrix * C)
+    sinkhorn_distance = torch.sum(transport_matrix * C, dim=(1, 2))
 
-    return sinkhorn_distance.item()
-
-def emd_approx(a, b):
-    """
-    Compute the Wasserstein distance (Earth Mover's Distance) between two point clouds using the Sinkhorn approximation.
-
-    Args:
-        a (torch.Tensor): First point cloud of shape (batch_size, num_points, points_dim).
-        b (torch.Tensor): Second point cloud of shape (batch_size, num_points, points_dim).
-
-    Returns:
-        torch.Tensor: A tensor containing the Wasserstein distances for each batch.
-    """
-
-    batch_size, num_points, points_dim = a.shape
-    wasserstein_distances = torch.zeros(batch_size, device=a.device)
-
-    for i in range(batch_size):
-        # Extract the point clouds for the current batch
-        point_cloud_1 = a[i]
-        point_cloud_2 = b[i]
-
-        # Compute the Sinkhorn distance for the current batch
-        wasserstein_distance = sinkhorn_distance(point_cloud_1, point_cloud_2)
-        
-        # Store the distance in the results tensor
-        wasserstein_distances[i] = wasserstein_distance
-
-    return wasserstein_distances
+    return sinkhorn_distance
 
 
 # Borrow from https://github.com/ThibaultGROUEIX/AtlasNet
