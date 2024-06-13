@@ -51,8 +51,6 @@ def animate(path, name):
     pc_batch = np.load(path)
     point_clouds = np.split(pc_batch, indices_or_sections=pc_batch.shape[0])
     point_clouds = [rotate_point_cloud(pc.squeeze(0).squeeze(1), 'x', angle) for pc in point_clouds]
-    print(point_clouds[0].shape)
-    set_trace()
 
     # Create a 3D scatter plot
     fig = plt.figure()

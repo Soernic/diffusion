@@ -292,7 +292,7 @@ class PointCloud:
     def __init__(self, pc):
         self.pc = pc
         # self.format_for_classifier()
-        self.pc = self.reshape()
+        self.pc = self.reshape() # Standardizes shape to be [1, 3, 2048] which is what classifier wants. Don't use it twice though. It'll get mad.
         self.save_path = './pcs'
         # print(f'Shape after formatting in PC object: {self.pc.shape}')
 
@@ -378,16 +378,6 @@ class PointCloudBatch:
             # assert pc.shape == (1, 3, 2048)?
             self.gradient_batch_list.append((pc, gradients))
 
-    def format(self):
-        # return np.stack([pc.pc.numpy().squeeze(0) for pc in self.batch_list])
-        temp = [pc.pc.numpy().squeeze(0) for pc in self.batch_list]
-        return np.stack(list(reversed(temp)))
-
-    
-    def format_with_gradients(self):
-        # TODO: ... Figure out what format is most useful here after successfully doing the plot.
-        pass
-
     def save(self, name):
         # TODO: save as npy file
         save_path = './trajectories'
@@ -408,18 +398,20 @@ class PointCloudBatch:
         
         return scatter,
 
-    # Just for animation
     def animate(self, name):
-        # TODO: Write the animate function from animate.py here
         angle = np.pi / 2  # 90 degrees
         point_clouds = list(reversed([pc.rotate('x', angle) for pc in self.batch_list]))
-        # print(rotated[0].shape)
 
         # Create a 3D scatter plot
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        scatter = ax.scatter(point_clouds[0][:, 0], point_clouds[0][:, 1], point_clouds[0][:, 2])
-    
+
+        # Get the initial point cloud
+        initial_pc = point_clouds[0]
+
+        # Create a scatter plot
+        scatter = ax.scatter(initial_pc[:, 0], initial_pc[:, 1], initial_pc[:, 2],
+                            c=initial_pc[:, 0], cmap='Blues', s=30, edgecolor='none', alpha=0.7)
 
         # Set up the axes limits
         ax.set_xlim([-3, 3])
@@ -431,16 +423,8 @@ class PointCloudBatch:
 
         # Save the animation as a GIF file
         ani.save(f'{name}.gif', writer='pillow', fps=33)
+
                 
-# Function to update the plot for each frame
-def update(frame, point_clouds, scatter, ax):
-    point_cloud = point_clouds[frame]
-    scatter._offsets3d = (point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2])
-    
-    # Rotate the view
-    ax.view_init(elev=30, azim=45 + frame)
-    
-    return scatter,
 
 
 def experiment(s, num_clouds=10):
@@ -479,12 +463,12 @@ if __name__ == '__main__':
     # for s in s_vals:
     #     experiment(s, num_clouds = 50)
 
-    for i in range(5):
+    for i in tqdm(range(5), 'generating gifs'):
         classifier = Classifier(args)
         diffusion = Diffusion(args)
         pc_batch = diffusion.sample()
         pc_batch.animate(f'static_method_test_{i}')
-        print('success!')
+        # print('success!')
         # pc = pc_batch.batch_list[0].copy()
         # label = pc.classify(classifier)
         # label = pc_batch.batch_list[0].classify(classifier)
