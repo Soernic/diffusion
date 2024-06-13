@@ -18,6 +18,12 @@ from utils.data import *
 from utils.dataset import *
 from utils.misc import *
 
+# For animation
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.animation import FuncAnimation
+
+
 
 
 def normalize_point_clouds(pcs, mode, logger=None):
@@ -285,7 +291,8 @@ class Diffusion:
 class PointCloud:
     def __init__(self, pc):
         self.pc = pc
-        self.format_for_classifier()
+        # self.format_for_classifier()
+        self.pc = self.reshape()
         self.save_path = './pcs'
         # print(f'Shape after formatting in PC object: {self.pc.shape}')
 
@@ -293,6 +300,7 @@ class PointCloud:
         self.pc = self.pc.transpose(0, 1).unsqueeze(0) # switching around first and second dim and then adding one in front
 
     def classify(self, classifier: Classifier):
+        # pc = self.reshape()
         outputs, _ = classifier.predict(self.pc)
         _, predicted = torch.max(outputs.data, 1)
         predicted = classifier.mask[predicted[0].item()]
@@ -307,10 +315,45 @@ class PointCloud:
 
     def rotate(self, axis, angle):
         # TODO: implement rotate function from animate.py here
-        pass
+        if axis == 'x':
+            rotation_matrix = np.array([
+                [1, 0, 0],
+                [0, np.cos(angle), -np.sin(angle)],
+                [0, np.sin(angle), np.cos(angle)]
+            ])
+        elif axis == 'y':
+            rotation_matrix = np.array([
+                [np.cos(angle), 0, np.sin(angle)],
+                [0, 1, 0],
+                [-np.sin(angle), 0, np.cos(angle)]
+            ])
+        elif axis == 'z':
+            rotation_matrix = np.array([
+                [np.cos(angle), -np.sin(angle), 0],
+                [np.sin(angle), np.cos(angle), 0],
+                [0, 0, 1]
+            ])
+        else:
+            raise ValueError("Axis must be 'x', 'y', or 'z'")
+        
+        return np.dot(self.pc.squeeze(0).permute(1, 0), rotation_matrix.T)
+
 
     def copy(self):
         return PointCloud(self.pc)
+    
+    def reshape(self):
+        """
+        Shapes are a hassle. This function just formats any point cloud so the classifier can classify it as long as it has 2048 x 3 points in it.
+        """
+        flat_tensor = self.pc.view(-1)
+        num_points = 2048 
+        num_dims = 3
+        reshaped = flat_tensor.view(num_points, num_dims)
+        reshaped = reshaped.t()
+        reshaped = reshaped.view(1, num_dims, num_points)
+        return reshaped
+
         
 
 class PointCloudBatch:
@@ -352,7 +395,52 @@ class PointCloudBatch:
         file_path = os.path.join(save_path, name + '.npy')
         np.save(file_path, self.format())
         print(f'PointCloudBatch saved to {file_path}')
+
+    # Just for animation
+    # Function to update the plot for each frame
+    @staticmethod
+    def update(frame, point_clouds, scatter, ax):
+        point_cloud = point_clouds[frame]
+        scatter._offsets3d = (point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2])
         
+        # Rotate the view
+        ax.view_init(elev=30, azim=45 + frame)
+        
+        return scatter,
+
+    # Just for animation
+    def animate(self, name):
+        # TODO: Write the animate function from animate.py here
+        angle = np.pi / 2  # 90 degrees
+        point_clouds = list(reversed([pc.rotate('x', angle) for pc in self.batch_list]))
+        # print(rotated[0].shape)
+
+        # Create a 3D scatter plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        scatter = ax.scatter(point_clouds[0][:, 0], point_clouds[0][:, 1], point_clouds[0][:, 2])
+    
+
+        # Set up the axes limits
+        ax.set_xlim([-3, 3])
+        ax.set_ylim([-3, 3])
+        ax.set_zlim([-3, 3])
+
+        # Create an animation
+        ani = FuncAnimation(fig, self.update, frames=len(point_clouds), fargs=(point_clouds, scatter, ax), interval=100)
+
+        # Save the animation as a GIF file
+        ani.save(f'{name}.gif', writer='pillow', fps=33)
+                
+# Function to update the plot for each frame
+def update(frame, point_clouds, scatter, ax):
+    point_cloud = point_clouds[frame]
+    scatter._offsets3d = (point_cloud[:, 0], point_cloud[:, 1], point_cloud[:, 2])
+    
+    # Rotate the view
+    ax.view_init(elev=30, azim=45 + frame)
+    
+    return scatter,
 
 
 def experiment(s, num_clouds=10):
@@ -390,18 +478,21 @@ if __name__ == '__main__':
     # s_vals = [1, 10, 100]
     # for s in s_vals:
     #     experiment(s, num_clouds = 50)
-    # for i in range(5):
-    #     classifier = Classifier(args)
-    #     diffusion = Diffusion(args)
-    #     pc_batch = diffusion.sample()
-    #     pc = pc_batch.batch_list[0].copy()
-    #     pc.pc = pc.pc.squeeze(0).permute(1, 2, 0)
-    #     label = pc.classify(classifier)
-    #     label = pc_batch.batch_list[0].classify(classifier)
-    #     # set_trace()
-    #     assert isinstance(label, str)
-    #     # print(pc_batch)
-    #     pc_batch.save('test_{i}_{label}')
+
+    for i in range(5):
+        classifier = Classifier(args)
+        diffusion = Diffusion(args)
+        pc_batch = diffusion.sample()
+        pc_batch.animate(f'static_method_test_{i}')
+        print('success!')
+        # pc = pc_batch.batch_list[0].copy()
+        # label = pc.classify(classifier)
+        # label = pc_batch.batch_list[0].classify(classifier)
+        # # set_trace()
+        # # set_trace()
+        # assert isinstance(label, str)
+        # # print(pc_batch)
+        # pc_batch.save(f'test_{i}_{label}')
 
 
 
