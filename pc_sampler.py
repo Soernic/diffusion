@@ -304,6 +304,13 @@ class PointCloud:
         file_path = os.path.join(self.save_path, name + '.npy')
         np.save(file_path, self.pc.numpy())
         print(f'Point cloud saved to {file_path}')
+
+    def rotate(self, axis, angle):
+        # TODO: implement rotate function from animate.py here
+        pass
+
+    def copy(self):
+        return PointCloud(self.pc)
         
 
 class PointCloudBatch:
@@ -348,8 +355,6 @@ class PointCloudBatch:
         
 
 
-
-
 def experiment(s, num_clouds=10):
     classifier = Classifier(args)
     diffusion = Diffusion(args)    
@@ -385,13 +390,18 @@ if __name__ == '__main__':
     # s_vals = [1, 10, 100]
     # for s in s_vals:
     #     experiment(s, num_clouds = 50)
-
-    classifier = Classifier(args)
-    diffusion = Diffusion(args)
-    pc_batch = diffusion.sample()
-    # print(pc_batch)
-    pc_batch.save('test')
-    # set_trace()
+    # for i in range(5):
+    #     classifier = Classifier(args)
+    #     diffusion = Diffusion(args)
+    #     pc_batch = diffusion.sample()
+    #     pc = pc_batch.batch_list[0].copy()
+    #     pc.pc = pc.pc.squeeze(0).permute(1, 2, 0)
+    #     label = pc.classify(classifier)
+    #     label = pc_batch.batch_list[0].classify(classifier)
+    #     # set_trace()
+    #     assert isinstance(label, str)
+    #     # print(pc_batch)
+    #     pc_batch.save('test_{i}_{label}')
 
 
 
