@@ -20,7 +20,6 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 parser = argparse.ArgumentParser()
 # Model arguments
 parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
-parser.add_argument('--num_classes', type=int, default=2)  # Assuming 2 classes: airplane and chair
 parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
@@ -37,8 +36,8 @@ parser.add_argument('--lr', type=float, default=1e-3)
 parser.add_argument('--weight_decay', type=float, default=0)
 parser.add_argument('--max_grad_norm', type=float, default=10)
 parser.add_argument('--end_lr', type=float, default=1e-4)
-parser.add_argument('--sched_start_epoch', type=int, default=150 * 1000)
-parser.add_argument('--sched_end_epoch', type=int, default=300 * 1000)
+parser.add_argument('--sched_start_epoch', type=int, default=5 * 1000)
+parser.add_argument('--sched_end_epoch', type=int, default=10 * 1000)
 
 # Training
 parser.add_argument('--seed', type=int, default=2024)
