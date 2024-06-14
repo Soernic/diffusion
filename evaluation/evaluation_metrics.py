@@ -14,43 +14,24 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-def emd_approx(a, b, eps=0.01, max_iter=10):
-    """
-    Compute the Sinkhorn distance between two point clouds using batched operations.
+def emd_approx(x, y):
+    bs, npts, mpts, dim = x.size(0), x.size(1), y.size(1), x.size(2)
+    assert npts == mpts, "EMD only works if two point clouds are equal size"
+    dim = x.shape[-1]
+    x = x.reshape(bs, npts, 1, dim)
+    y = y.reshape(bs, 1, mpts, dim)
+    dist = (x - y).norm(dim=-1, keepdim=False)  # (bs, npts, mpts)
 
-    Args:
-        a (torch.Tensor): First point cloud of shape (batch_size, num_points, points_dim).
-        b (torch.Tensor): Second point cloud of shape (batch_size, num_points, points_dim).
-        eps (float): Regularization parameter.
-        max_iter (int): Maximum number of iterations.
-
-    Returns:
-        torch.Tensor: Sinkhorn distances for each pair of point clouds in the batch.
-    """
-    batch_size, n, _ = a.shape
-    _, m, _ = b.shape
-
-    # Compute the pairwise distance matrix
-    C = torch.cdist(a, b, p=2)  # Shape: (batch_size, n, m)
-
-    # Initialize dual variables
-    u = torch.zeros(batch_size, n, device=a.device)
-    v = torch.zeros(batch_size, m, device=a.device)
-
-    # Kernel matrix
-    K = torch.exp(-C / eps)
-
-    for _ in range(max_iter):
-        u = eps * (torch.log(torch.ones(batch_size, n, device=a.device) / n) - torch.logsumexp(v.unsqueeze(1) - C / eps, dim=2)) + u
-        v = eps * (torch.log(torch.ones(batch_size, m, device=a.device) / m) - torch.logsumexp(u.unsqueeze(2) - C / eps, dim=1)) + v
-
-    # Compute Sinkhorn distance
-    U = u.unsqueeze(2)
-    V = v.unsqueeze(1)
-    transport_matrix = torch.exp((U + V - C) / eps)
-    sinkhorn_distance = torch.sum(transport_matrix * C, dim=(1, 2))
-
-    return sinkhorn_distance
+    emd_lst = []
+    dist_np = dist.cpu().detach().numpy()
+    for i in range(bs):
+        d_i = dist_np[i]
+        r_idx, c_idx = linear_sum_assignment(d_i)
+        emd_i = d_i[r_idx, c_idx].mean()
+        emd_lst.append(emd_i)
+    emd = np.stack(emd_lst).reshape(-1)
+    emd_torch = torch.from_numpy(emd).to(x)
+    return emd_torch
 
 
 # Borrow from https://github.com/ThibaultGROUEIX/AtlasNet
