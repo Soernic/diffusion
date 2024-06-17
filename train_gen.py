@@ -6,6 +6,7 @@ import torch.utils.tensorboard
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from tqdm.auto import tqdm
+from pdb import set_trace
 
 from utils.dataset import *
 from utils.misc import *
@@ -34,6 +35,8 @@ parser.add_argument('--sample_num_points', type=int, default=2048)
 parser.add_argument('--kl_weight', type=float, default=0.001)
 parser.add_argument('--residual', type=eval, default=True, choices=[True, False])
 parser.add_argument('--spectral_norm', type=eval, default=False, choices=[True, False])
+parser.add_argument('--load_ckpt', type=eval, default=False, choices=[True, False])
+parser.add_argument('--ckpt', type=str, default='./logs_gen/GEN_2024_06_13__11_49_25/ckpt_0.000000_100.pt')
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
@@ -56,13 +59,14 @@ parser.add_argument('--logging', type=eval, default=True, choices=[True, False])
 parser.add_argument('--log_root', type=str, default='./logs_gen')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--max_iters', type=int, default=float('inf'))
-parser.add_argument('--val_freq', type=int, default=1000)
+parser.add_argument('--val_freq', type=int, default=10000)
 parser.add_argument('--test_freq', type=int, default=30*THOUSAND)
 parser.add_argument('--test_size', type=int, default=400)
 parser.add_argument('--tag', type=str, default=None)
 args = parser.parse_args()
 seed_all(args.seed)
-
+if args.load_ckpt:
+    ckpt = torch.load(args.ckpt)
 # Logging
 if args.logging:
     log_dir = get_new_log_dir(args.log_root, prefix='GEN_', postfix='_' + args.tag if args.tag is not None else '')
@@ -96,14 +100,17 @@ train_iter = get_data_iterator(DataLoader(
     batch_size=args.train_batch_size,
     num_workers=0,
 ))
-
 # Model
-logger.info('Building model...')
+logger.info('Buidling model...')
 if args.model == 'gaussian':
     model = GaussianVAE(args).to(args.device)
 elif args.model == 'flow':
     model = FlowVAE(args).to(args.device)
-logger.info(repr(model))
+#if args.load_ckpt:
+    #logger.info('Loading model...')
+    #model.load_state_dict(ckpt['state_dict'])
+
+#logger.info(repr(model))
 if args.spectral_norm:
     add_spectral_norm(model, logger=logger)
 
@@ -113,19 +120,21 @@ optimizer = torch.optim.Adam(model.parameters(),
     weight_decay=args.weight_decay
 )
 scheduler = get_linear_scheduler(
-    optimizer,
-    start_epoch=args.sched_start_epoch,
-    end_epoch=args.sched_end_epoch,
-    start_lr=args.lr,
-    end_lr=args.end_lr
-)
+        optimizer,
+        start_epoch=args.sched_start_epoch,
+        end_epoch=args.sched_end_epoch,
+        start_lr=args.lr,
+        end_lr=args.end_lr
+    )
+
+    
 
 # Train, validate and test
 def train(it):
     # Load data
     batch = next(train_iter)
     x = batch['pointcloud'].to(args.device)
-
+    
     # Reset grad and model state
     optimizer.zero_grad()
     model.train()
@@ -140,6 +149,7 @@ def train(it):
     loss.backward()
     orig_grad_norm = clip_grad_norm_(model.parameters(), args.max_grad_norm)
     optimizer.step()
+    #scheduler.print_lr(is_verbose=True, group=0, lr = scheduler.get_last_lr()[0], epoch = it)
     scheduler.step()
 
     logger.info('[Train] Iter %04d | Loss %.6f | Grad %.4f | KLWeight %.4f' % (
@@ -208,8 +218,17 @@ def test(it):
 logger.info('Start training...')
 try:
     it = 1
+    if args.load_ckpt: # Loading checkpoint if there is one
+        logger.info('loading ckpt...')
+        it = ckpt['others']['scheduler']['_step_count']
+        scheduler.load_state_dict(ckpt['others']['scheduler'])
+        optimizer.load_state_dict(ckpt['others']['optimizer'])
+        logger.info('Loading model...')
+        model.load_state_dict(ckpt['state_dict'])
+
     while it <= args.max_iters:
         train(it)
+        
         if it % args.val_freq == 0 or it == args.max_iters:
             validate_inspect(it)
             opt_states = {
@@ -223,3 +242,4 @@ try:
 
 except KeyboardInterrupt:
     logger.info('Terminating...')
+
