@@ -51,7 +51,7 @@ def normalize_point_clouds(pcs, mode, logger=None):
 parser = argparse.ArgumentParser()
 parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
 parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
-parser.add_argument('--categories', type=str_list, default=['all'])
+parser.add_argument('--classifier_categories', type=str_list, default=['all'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--batch_size', type=int, default=1)
@@ -170,7 +170,7 @@ class VariantFlowVAE(FlowVAE):
 class Classifier:
     def __init__(self, args):
         
-        self.classes = args.categories
+        self.classes = args.classifier_categories
         if self.classes == ['all']:
             self.classes = ['airplane', 'bag', 'basket', 'bathtub', 'bed', 'bench', 'bottle', 'bowl', 'bus', 'cabinet', 'can', 'camera', 'cap', 'car', 'chair', 'clock', 'dishwasher', 'monitor', 'table', 'telephone', 'tin_can', 'tower', 'train', 'keyboard', 'earphone', 'faucet', 'file', 'guitar', 'helmet', 'jar', 'knife', 'lamp', 'laptop', 'speaker', 'mailbox', 'microphone', 'microwave', 'motorcycle', 'mug', 'piano', 'pillow', 'pistol', 'pot', 'printer', 'remote_control', 'rifle', 'rocket', 'skateboard', 'sofa', 'stove', 'vessel', 'washer', 'cellphone', 'birdhouse', 'bookshelf']
         self.device = args.device
