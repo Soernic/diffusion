@@ -1,3 +1,4 @@
+
 """
 From https://github.com/stevenygd/PointFlow/tree/master/metrics
 """
@@ -8,7 +9,7 @@ from scipy.stats import entropy
 from sklearn.neighbors import NearestNeighbors
 from numpy.linalg import norm
 from tqdm.auto import tqdm
-from scipy.optimize import linear_sum_assignment
+
 
 _EMD_NOT_IMPL_WARNED = False
 def emd_approx(sample, ref):
@@ -23,24 +24,24 @@ def emd_approx(sample, ref):
         print('\n')
     return emd
 
-def emd_approx(x, y):
-    bs, npts, mpts, dim = x.size(0), x.size(1), y.size(1), x.size(2)
-    assert npts == mpts, "EMD only works if two point clouds are equal size"
-    dim = x.shape[-1]
-    x = x.reshape(bs, npts, 1, dim)
-    y = y.reshape(bs, 1, mpts, dim)
-    dist = (x - y).norm(dim=-1, keepdim=False)  # (bs, npts, mpts)
+# def emd_approx(x, y):
+#     bs, npts, mpts, dim = x.size(0), x.size(1), y.size(1), x.size(2)
+#     assert npts == mpts, "EMD only works if two point clouds are equal size"
+#     dim = x.shape[-1]
+#     x = x.reshape(bs, npts, 1, dim)
+#     y = y.reshape(bs, 1, mpts, dim)
+#     dist = (x - y).norm(dim=-1, keepdim=False)  # (bs, npts, mpts)
 
-    emd_lst = []
-    dist_np = dist.cpu().detach().numpy()
-    for i in range(bs):
-        d_i = dist_np[i]
-        r_idx, c_idx = linear_sum_assignment(d_i)
-        emd_i = d_i[r_idx, c_idx].mean()
-        emd_lst.append(emd_i)
-    emd = np.stack(emd_lst).reshape(-1)
-    emd_torch = torch.from_numpy(emd).to(x)
-    return emd_torch
+#     emd_lst = []
+#     dist_np = dist.cpu().detach().numpy()
+#     for i in range(bs):
+#         d_i = dist_np[i]
+#         r_idx, c_idx = linear_sum_assignment(d_i)
+#         emd_i = d_i[r_idx, c_idx].mean()
+#         emd_lst.append(emd_i)
+#     emd = np.stack(emd_lst).reshape(-1)
+#     emd_torch = torch.from_numpy(emd).to(x)
+#     return emd_torch
 
 # Borrow from https://github.com/ThibaultGROUEIX/AtlasNet
 def distChamfer(a, b):
