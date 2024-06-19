@@ -101,16 +101,12 @@ train_iter = get_data_iterator(DataLoader(
     num_workers=0,
 ))
 # Model
-logger.info('Buidling model...')
+logger.info('Building model...')
 if args.model == 'gaussian':
     model = GaussianVAE(args).to(args.device)
 elif args.model == 'flow':
     model = FlowVAE(args).to(args.device)
-#if args.load_ckpt:
-    #logger.info('Loading model...')
-    #model.load_state_dict(ckpt['state_dict'])
-
-#logger.info(repr(model))
+logger.info(repr(model))
 if args.spectral_norm:
     add_spectral_norm(model, logger=logger)
 
@@ -126,15 +122,12 @@ scheduler = get_linear_scheduler(
         start_lr=args.lr,
         end_lr=args.end_lr
     )
-
-    
-
 # Train, validate and test
 def train(it):
     # Load data
     batch = next(train_iter)
     x = batch['pointcloud'].to(args.device)
-    
+
     # Reset grad and model state
     optimizer.zero_grad()
     model.train()
@@ -228,7 +221,6 @@ try:
 
     while it <= args.max_iters:
         train(it)
-        
         if it % args.val_freq == 0 or it == args.max_iters:
             validate_inspect(it)
             opt_states = {
@@ -242,4 +234,3 @@ try:
 
 except KeyboardInterrupt:
     logger.info('Terminating...')
-
