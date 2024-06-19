@@ -24,6 +24,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 
 
+# TODO: REmove later - duct tape fix
+t = None
 
 
 def normalize_point_clouds(pcs, mode, logger=None):

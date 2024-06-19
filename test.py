@@ -1,31 +1,42 @@
-
-import argparse
-import math
 import os
-import time
-import numpy as np
-
-# import torch
+import argparse
+import torch
+# import torch.utils.tensorboard
+# from torch.nn.utils import clip_grad_norm_
 # from tqdm.auto import tqdm
-# from typing import List # just type better type hints 
-# from pdb import set_trace # for debugging
 
-# from evaluation import *
-# from models.flow import add_spectral_norm, spectral_norm_power_iteration
-# from models.vae_flow import *
-# from models.vae_gaussian import *
-# from models.classifier import *
-# from utils.data import *
 # from utils.dataset import *
 # from utils.misc import *
+# from utils.data import *
+# from utils.transform import *
+# from evaluation import EMD_CD
+# # from pointnet.z_PointNetCls import *
+# from models.classifier import *
+# from models.autoencoder import *
+# # Arguments
+from pdb import set_trace
 
 
-def load_point_cloud(file_path):
-    point_cloud = np.load(file_path)
-    return point_cloud
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-pc = load_point_cloud('./pcs/airplane_1_0.npy')
-print(pc)
-print(np.mean(pc, axis=2))
-print(np.var(pc, axis=2))
-print(pc.shape)
+
+
+
+
+beta_1 = 1e-4
+beta_T = 0.02
+
+# Get betas and pad the first step
+betas = torch.linspace(beta_1, beta_T, steps=100)
+betas = torch.cat([torch.zeros([1]), betas], dim=0)
+
+# Get alphas from betas
+alphas = 1 - betas
+
+# Can't do cumprod since 0 in first step, but we can do this
+log_alphas = torch.log(alphas)
+for i in range(1, log_alphas.size(0)):
+    log_alphas[i] += log_alphas[i - 1]
+alpha_bars = log_alphas.exp()
+set_trace()
+
