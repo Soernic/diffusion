@@ -27,7 +27,7 @@ from matplotlib.animation import FuncAnimation
 
 # Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
+parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
 parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
 parser.add_argument('--categories', type=str_list, default=['all'])
 parser.add_argument('--save_dir', type=str, default='./results')
@@ -41,9 +41,10 @@ parser.add_argument('--ret_traj', type=eval, default=True, choices=[True, False]
 args = parser.parse_args()
 
 
+
 if __name__ == '__main__':
 
-    for i in tqdm(range(5), 'generating gifs'):
+    for i in tqdm(range(4), 'generating gifs'):
         # Initialize classifier and diffusion model with arguments
         classifier = Classifier(args)
         diffusion = Diffusion(args)
@@ -56,4 +57,5 @@ if __name__ == '__main__':
 
         # Animate the process.
         # TODO: MODIFY NAME HERE IF YOU WANT IT DIFFERENT. 
-        pc_batch.animate(name=f'{i}_{label}')
+        name = f'{i}_{label}'
+        pc_batch.animate(name=name)

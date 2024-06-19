@@ -24,6 +24,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
 
 
+# TODO: REmove later - duct tape fix
+t = None
 
 
 def normalize_point_clouds(pcs, mode, logger=None):
@@ -47,23 +49,6 @@ def normalize_point_clouds(pcs, mode, logger=None):
 
 
 
-# Arguments
-parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
-parser.add_argument('--categories', type=str_list, default=['all'])
-parser.add_argument('--save_dir', type=str, default='./results')
-parser.add_argument('--device', type=str, default='cuda')
-parser.add_argument('--batch_size', type=int, default=1)
-parser.add_argument('--sample_num_points', type=int, default=2048)
-parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
-parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
-parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
-args = parser.parse_args()
-
-
-
 class VariantDiffusionPoint(DiffusionPoint):
     def __init__(self, net, var_sched: VarianceSchedule, ret_traj=False):
         super().__init__(net, var_sched)
@@ -80,14 +65,44 @@ class VariantDiffusionPoint(DiffusionPoint):
         temp = e_theta - torch.sqrt(1 - alpha_bar) * classifier_grad_scaled
         temp = temp.permute(0, 2, 1)
         return temp
-    
-    def get_mu_addition(self, x_t, sigma, classifier, desired_class, s):
-        x_t.requires_grad = True
-        classifier_output = classifier.predict_variant(x_t.permute(0, 2, 1), guidance=True)
-        desired_output = classifier_output[:, desired_class]
-        classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x_t, retain_graph=True)[0]
-        mu_addition = s * sigma**2 * classifier_grad
-        return mu_addition
+
+
+    def get_mu_addition(self, x_t, t, sigma, classifier, desired_class, s):
+        assert desired_class is not None
+        with torch.enable_grad():
+            x_t = x_t.detach().requires_grad_(True)
+            classifier_output = classifier.predict_variant(x_t.permute(0, 2, 1), guidance=True)
+            log_probs = F.log_softmax(classifier_output, dim=-1) # TODO: Check if classifier output is not already log probabilities..
+            selected = log_probs[:, desired_class]
+            classifier_grad = torch.autograd.grad(selected.sum(), x_t, retain_graph=True)[0]
+            return s * sigma**2 * classifier_grad.float() # TODO: does this make a difference?
+
+    # def get_mu_addition(self, x_t, t, sigma, classifier, desired_class, s):
+    #     x_t.requires_grad = True
+    #     classifier_output = classifier.predict_variant(x_t.permute(0, 2, 1), guidance=True)
+    #     desired_output = classifier_output[:, desired_class]
+    #     classifier_grad = torch.autograd.grad(outputs=desired_output.sum(), inputs=x_t, retain_graph=True)[0]
+    #     mu_addition = s * sigma**2 * classifier_grad
+
+    #     ### TODO: temporary code, to visualize gradients, remove later
+    #     global t
+    #     if t is not None:
+    #         if t % 10 == 0 or t == 1:
+    #             # set_trace()
+    #             x = x_t.clone().detach().cpu().numpy()[0]
+    #             grad = classifier_grad[0].clone().detach().cpu().numpy()
+    #             norms = np.sqrt(np.sum(grad**2, axis=1))
+    #             collected = np.hstack((x, norms.reshape(2048, 1)))
+    #             np.save(f'grad_visualization/{t}.npy', collected)
+
+    #         t -= 1
+
+    #         if t < 10:
+    #             print(t)
+
+    #     ### TODO: temporary code, to visualize gradients, remove later
+
+    #     return mu_addition
     
 
     def sample(
@@ -121,11 +136,11 @@ class VariantDiffusionPoint(DiffusionPoint):
             mu = c0 * (x_t - c1 * e_theta)
             # Modify e_theta based on classifier guidance
             if classifier is not None and desired_class is not None:
-                mu_addition = self.get_mu_addition(x_t=x_t, sigma=sigma, classifier=classifier, desired_class=desired_class, s=s)
+                mu_addition = self.get_mu_addition(x_t=x_t, t=t, sigma=sigma, classifier=classifier, desired_class=desired_class, s=s)
                 mu += mu_addition                            
 
             x_next = mu + sigma * z
-            assert x_next.requires_grad == True
+            # assert x_next.requires_grad == True
             traj[t-1] = x_next.detach()     # Stop gradient and save trajectory.
             traj[t] = traj[t].cpu()         # Move previous output to CPU memory.
             if not self.ret_traj:
@@ -235,6 +250,7 @@ class Classifier:
 class Diffusion:
     def __init__(self, args):
         self.args = args
+        self.normalize = args.normalize
         self.ret_traj = args.ret_traj
         self.path = args.ckpt
         self.batch_size = args.batch_size
@@ -260,16 +276,16 @@ class Diffusion:
                 self.pcs.append(x.detach().cpu())
             self.pcs = torch.cat(self.pcs, dim=0)  # [:len(test_dset)] we don't need this right?
             
-            if args.normalize is not None:
+            if self.normalize is not None:
                 # TODO: move normalize to be part of this class
-                self.pcs = normalize_point_clouds(self.pcs, mode=args.normalize)
+                self.pcs = normalize_point_clouds(self.pcs, mode=self.normalize)
 
             # Now, conver them to pointcloud objects so they are formatted right
             self.pcs = [PointCloud(pc) for pc in self.pcs]
             return self.pcs
         
         else:
-            for i in range(self.num_batches):
+            for j in range(self.num_batches):
                 z = torch.randn([self.batch_size, self.ckpt['args'].latent_dim]).to(self.args.device)
                 traj = self.model.sample(z, self.args.sample_num_points, flexibility=self.ckpt['args'].flexibility, classifier=classifier, desired_class=desired_class, s=1)            
                 # In this case traj is a dictonary
@@ -398,7 +414,7 @@ class PointCloudBatch:
         
         return scatter,
 
-    def animate(self, name):
+    def animate(self, name, fps=50):
         angle = np.pi / 2  # 90 degrees
         point_clouds = list(reversed([pc.rotate('x', angle) for pc in self.batch_list]))
 
@@ -418,11 +434,14 @@ class PointCloudBatch:
         ax.set_ylim([-3, 3])
         ax.set_zlim([-3, 3])
 
+        # Add the last frame multiple times for a full second at the end
+        extended_point_clouds = point_clouds + [point_clouds[-1]] * len(point_clouds)
+
         # Create an animation
-        ani = FuncAnimation(fig, self.update, frames=len(point_clouds), fargs=(point_clouds, scatter, ax), interval=100)
+        ani = FuncAnimation(fig, self.update, frames=len(extended_point_clouds), fargs=(extended_point_clouds, scatter, ax), interval=100)
 
         # Save the animation as a GIF file
-        ani.save(f'{name}.gif', writer='pillow', fps=33)
+        ani.save(f'{name}.gif', writer='pillow', fps=fps)
 
                 
 
@@ -447,6 +466,27 @@ def experiment(s, num_clouds=10):
 
 
 if __name__ == '__main__':
+
+
+    # Arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_sup_1M.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
+    parser.add_argument('--categories', type=str_list, default=['all'])
+    parser.add_argument('--save_dir', type=str, default='./results')
+    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--batch_size', type=int, default=1)
+    parser.add_argument('--sample_num_points', type=int, default=2048)
+    parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
+    parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
+    args = parser.parse_args()
+
+
+
+
+
     # s = 1
     # for i in range(3):    
     #     classifier = Classifier(args)
@@ -463,14 +503,21 @@ if __name__ == '__main__':
     # for s in s_vals:
     #     experiment(s, num_clouds = 50)
 
-    for i in tqdm(range(5), 'generating gifs'):
+    for i in tqdm(range(1), 'generating gifs'):
         classifier = Classifier(args)
         diffusion = Diffusion(args)
-        pc_batch = diffusion.sample()
+        pc_batch = diffusion.sample(
+            classifier=classifier,
+            desired_class=0,
+            s=1
+        )
+        
         label = pc_batch.batch_list[0].classify(classifier)
         print(label)
         pc_batch.animate(f'{i}_{label}')
         # print('success!')
+
+        
         # pc = pc_batch.batch_list[0].copy()
         # label = pc.classify(classifier)
         # label = pc_batch.batch_list[0].classify(classifier)
