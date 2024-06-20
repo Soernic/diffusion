@@ -137,4 +137,12 @@ dmypy.json
 /pcs*
 /relevant_checkpoints*
 /training_logs*
+/used_shell_scripts*
+/trajectories*
+/results*
+/plots*
+/grad_visualization*
+/logs_pointnet*
+/logs_gen*
 *.gif
+*.sh
