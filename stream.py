@@ -9,17 +9,17 @@ def load_point_cloud(file_path):
     return point_cloud
 
 # Function to visualize point cloud
-def visualize_point_cloud(point_cloud):
+def visualize_point_cloud(point_cloud, title):
     # Extract x, y, z coordinates
     x = point_cloud[0, 0, :]
     y = point_cloud[0, 1, :]
     z = point_cloud[0, 2, :]
 
-    # Define camera settings
+    # Define camera settings for a closer view
     camera = dict(
         up=dict(x=0, y=1, z=0),
         center=dict(x=0, y=0, z=0),
-        eye=dict(x=1.5, y=0.8, z=-1.3)  # Adjust these values to set the desired angle
+        eye=dict(x=0.75, y=0.4, z=-0.65)  # Adjust these values to set the desired zoom level
     )
 
     # Create a 3D scatter plot using Plotly
@@ -36,9 +36,25 @@ def visualize_point_cloud(point_cloud):
         )
     )
 
+    # Compute the aspect ratio
+    x_range = max(x) - min(x)
+    y_range = max(y) - min(y)
+    z_range = max(z) - min(z)
+    max_range = max(x_range, y_range, z_range)
+    aspect_ratio = {
+        'x': x_range / max_range,
+        'y': y_range / max_range,
+        'z': z_range / max_range
+    }
+
     layout = go.Layout(
         margin=dict(l=0, r=0, b=0, t=0),
-        scene_camera=camera
+        scene=dict(
+            camera=camera,
+            aspectmode='manual',  # Set the aspect mode to manual
+            aspectratio=aspect_ratio  # Set the computed aspect ratio
+        ),
+        title=title
     )
 
     fig = go.Figure(data=[scatter], layout=layout)
@@ -53,11 +69,12 @@ st.write('test')
 directory = './pcs'
 files = sorted([f for f in os.listdir(directory) if f.endswith('.npy')])
 
-# File selection dropdown
-selected_file = st.selectbox("Select a point cloud file", files)
+# File selection with multiselect
+selected_files = st.multiselect("Select point cloud files", files)
 
-if selected_file:
-    file_path = os.path.join(directory, selected_file)
-    point_cloud = load_point_cloud(file_path)
-    fig = visualize_point_cloud(point_cloud)
-    st.plotly_chart(fig)
+if selected_files:
+    for selected_file in selected_files:
+        file_path = os.path.join(directory, selected_file)
+        point_cloud = load_point_cloud(file_path)
+        fig = visualize_point_cloud(point_cloud, selected_file)
+        st.plotly_chart(fig)
