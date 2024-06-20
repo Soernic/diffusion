@@ -9,7 +9,7 @@ from utils.misc import *
 from utils.data import *
 from utils.transform import *
 from evaluation import EMD_CD
-from models.classifier_time_aware import *
+from models.classifier_time_aware import * # PointNet classifier is from here
 from models.autoencoder import *
 
 from pdb import set_trace
@@ -21,12 +21,12 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 parser = argparse.ArgumentParser()
 
 # Model arguments
-parser.add_argument('--num_classes', type=int, default=55)
+parser.add_argument('--num_classes', type=int, default=2)
 parser.add_argument('--resume', type=str, default=None)
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--categories', type=str_list, default=['all'])
+parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=64)
@@ -51,10 +51,10 @@ parser.add_argument('--logging', type=eval, default=True, choices=[True, False])
 parser.add_argument('--log_root', type=str, default='./logs_pointnet')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--max_iters', type=int, default=np.inf)
-parser.add_argument('--val_freq', type=float, default=200)
+parser.add_argument('--val_freq', type=float, default=1000)
 parser.add_argument('--num_val_batches', type=int, default=-1)
 parser.add_argument('--tag', type=str, default='')
-parser.add_argument('--noise_limit', type=float, default=0.6)
+parser.add_argument('--noise_limit', type=float, default=1)
 args = parser.parse_args()
 seed_all(args.seed)
 
@@ -81,7 +81,7 @@ val_loader = DataLoader(val_dset, batch_size=args.val_batch_size, num_workers=0)
 
 # Model
 logger.info('Building model...')
-model = PointNet(k=args.num_classes, feature_transform=True).to(args.device)
+model = PointNetWithTimeEmbedding(k=args.num_classes, feature_transform=True).to(args.device)
 if args.resume is not None:
     logger.info('Resuming from checkpoint...')
     ckpt = torch.load(args.resume)
@@ -95,7 +95,7 @@ scheduler = get_linear_scheduler(optimizer, start_epoch=args.sched_start_epoch, 
 # Criterion
 criterion = torch.nn.CrossEntropyLoss()
 cate_all = ['airplane', 'bag', 'basket', 'bathtub', 'bed', 'bench', 'bottle', 'bowl', 'bus', 'cabinet', 'can', 'camera', 'cap', 'car', 'chair', 'clock', 'dishwasher', 'monitor', 'table', 'telephone', 'tin_can', 'tower', 'train', 'keyboard', 'earphone', 'faucet', 'file', 'guitar', 'helmet', 'jar', 'knife', 'lamp', 'laptop', 'speaker', 'mailbox', 'microphone', 'microwave', 'motorcycle', 'mug', 'piano', 'pillow', 'pistol', 'pot', 'printer', 'remote_control', 'rifle', 'rocket', 'skateboard', 'sofa', 'stove', 'vessel', 'washer', 'cellphone', 'birdhouse', 'bookshelf']
-cate_all = ['airplane', 'chair']
+# cate_all = ['airplane', 'chair']
 label_mapping = {cate_all[i]: i for i in range(len(cate_all))}
 
 def get_alpha_alpha_bars(args):
@@ -114,64 +114,48 @@ def get_alpha_alpha_bars(args):
     for i in range(1, log_alphas.size(0)):
         log_alphas[i] += log_alphas[i - 1]
     alpha_bars = log_alphas.exp()
-    return alphas, alpha_bars
+    return alphas, alpha_bars, betas
 
-alphas, alpha_bars = get_alpha_alpha_bars(args)
+alphas, alpha_bars, betas = get_alpha_alpha_bars(args)
+alphas, alpha_bars, betas = alphas.to(args.device), alpha_bars.to(args.device), betas.to(args.device)
 
-def noise_batch(x: torch.Tensor, t: int, alphas: torch.Tensor, alpha_bars: torch.Tensor):
+def noise_batch(x: torch.Tensor, t: torch.Tensor, alpha_bars: torch.Tensor):
     """
     Takes a batch and transforms it to its noisy version at time step t
     """
-    
-    # TODO: Sanity check here.. Is this actually correct?
-
-    sqrt_alpha_bar_t = torch.sqrt(alpha_bars[t])
-    sqrt_one_minus_alpha_bar_t = torch.sqrt(1.0 - alpha_bars[t])
+    sqrt_alpha_bar_t = torch.sqrt(alpha_bars[t]).view(-1, 1, 1)
+    sqrt_one_minus_alpha_bar_t = torch.sqrt(1.0 - alpha_bars[t]).view(-1, 1, 1)
     epsilon = torch.randn_like(x)
     return sqrt_alpha_bar_t * x + sqrt_one_minus_alpha_bar_t * epsilon
-
-def add_time_step_feature(x: torch.Tensor, t: int):
-    """
-    Adds the time step as a feature to each point in the point cloud
-    """
-
-    # TODO: Sanity check here.. Is this actually correct?
-
-    t_feature = torch.full((x.size(0), x.size(1), 1), t, device=x.device)
-    return torch.cat((x, t_feature), dim=2)
 
 def train(it):
     # Load data
     batch = next(train_iter)
     x = torch.tensor(batch['pointcloud']).to(args.device)
+    # set_trace()
     x = x.transpose(1, 2)
     labels = [label_mapping[label] for label in batch['cate']]
     labels = torch.tensor(labels).to(args.device)
-
+    # set_trace()
     # Add noise
-    noise_limit = args.noise_limit * args.num_steps + 1 # Don't train on noisier stuff than this
-    t = np.random.randint(0, int(noise_limit))
+    noise_limit = int(args.noise_limit * args.num_steps) # Don't train on noisier stuff than this
+    t = torch.randint(0, noise_limit, (x.size(0),), device=x.device) # t in the shape of (batch_size, )
+    beta = (1 - alphas[t]) # This is the right formula. alpha = 1 - beta
+    beta = betas[t]
 
-    # ## TODO: Temp code - remove afterwards
-    # for t in np.arange(0, 100, 10):
-    #     x_noisy = noise_batch(x, t, alphas, alpha_bars)
-    #     PointCloud(x_noisy[0].unsqueeze(0).permute(0, 2, 1).cpu()).save(str(t))
-    # ## TODO: Temp code - remove afterwards
-
-    t = 0
-    x_noisy = noise_batch(x, t, alphas, alpha_bars)
-
-
-
-    # Add time step feature
-    x_noisy = add_time_step_feature(x_noisy.transpose(1, 2), t).transpose(1, 2)
+    x_noisy = noise_batch(x, t, alpha_bars)
+    
+    # set_trace()
+    # pcs = [PointCloud(x_noisy[idx].detach().cpu().unsqueeze(0).permute(0, 2, 1)).save(f'train_{str(t[idx].item()):>03}') for idx in range(4)]
+    
 
     # Reset grad and model state
     optimizer.zero_grad()
     model.train()
 
+    # set_trace()
     # Forward
-    outputs, trans_feat = model(x_noisy)
+    outputs, trans_feat = model(x_noisy, beta)
     loss = criterion(outputs, labels)
     if model.feature_transform:
         loss += 0.001 * model.feature_transform_regularizer(trans_feat)
@@ -193,27 +177,33 @@ def validate_loss(it):
     model.eval()
     correct = 0
     total = 0
-    num_iterations = 1  # Set this to 3 to effectively 3x the validation iterations (.. only if sampling t from uniformt)
+    num_iterations = 5  # Set this to 3 to effectively 3x the validation iterations (.. only if sampling t from uniformt)
     with torch.no_grad():
-        for _ in range(num_iterations):
-            for i, batch in enumerate(tqdm(val_loader, desc='Validate')):
+        for _ in tqdm(range(num_iterations), 'Validating...'):
+            for i, batch in enumerate(val_loader):
                 if args.num_val_batches > 0 and i >= args.num_val_batches:
                     break
                 x = torch.tensor(batch['pointcloud']).float().to(args.device)
                 x = x.transpose(1, 2)
                 labels = [label_mapping[label] for label in batch['cate']]
                 labels = torch.tensor(labels).to(args.device)
-
+                # set_trace()
                 # Add noise
-                noise_limit = args.noise_limit * args.num_steps + 1
-                t = np.random.randint(0, int(noise_limit))
-                t = 1
-                x_noisy = noise_batch(x, t, alphas, alpha_bars)
+                
 
-                # Add time step feature
-                x_noisy = add_time_step_feature(x_noisy.transpose(1, 2), t).transpose(1, 2)
+                noise_limit = int(args.noise_limit * args.num_steps) + 1
+                t = torch.randint(0, noise_limit, (x.size(0),), device=x.device)
+                beta = (1 - alphas[t])
 
-                outputs, _ = model(x_noisy)
+
+                x_noisy = noise_batch(x, t, alpha_bars)
+
+                # set_trace()
+                # pcs = [PointCloud(x_noisy[idx].detach().cpu().unsqueeze(0).permute(0, 2, 1)).save(f'validate_{str(t[idx].item()):>03}') for idx in range(4)]
+                # set_trace()
+
+
+                outputs, _ = model(x_noisy, beta)
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
