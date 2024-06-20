@@ -136,4 +136,5 @@ dmypy.json
 /gifs*
 /pcs*
 /relevant_checkpoints*
+/training_logs*
 *.gif

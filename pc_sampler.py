@@ -471,7 +471,7 @@ if __name__ == '__main__':
         pc_batch = diffusion.sample()
         label = pc_batch.batch_list[0].classify(classifier)
         print(label)
-        pc_batch.animate(f'{i}_{label}')
+        # pc_batch.animate(f'{i}_{label}')
         # print('success!')
         # pc = pc_batch.batch_list[0].copy()
         # label = pc.classify(classifier)
