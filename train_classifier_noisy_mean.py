@@ -60,7 +60,7 @@ seed_all(args.seed)
 
 # Logging
 if args.logging:
-    log_dir = get_new_log_dir(args.log_root, prefix='PointNet_', postfix='_' + args.tag if args.tag is not None else '')
+    log_dir = get_new_log_dir(args.log_root, prefix='PointNetMean_', postfix='_' + args.tag if args.tag is not None else '')
     logger = get_logger('train', log_dir)
     writer = torch.utils.tensorboard.SummaryWriter(log_dir)
     ckpt_mgr = CheckpointManager(log_dir)

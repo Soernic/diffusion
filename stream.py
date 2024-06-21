@@ -63,7 +63,7 @@ def visualize_point_cloud(point_cloud, title):
 
 # Streamlit UI
 st.title("Point Cloud Viewer")
-st.write('test')
+
 
 # Get list of .npy files in the directory
 directory = './pcs'
