@@ -140,7 +140,6 @@ dmypy.json
 /used_shell_scripts*
 /trajectories*
 /results*
-/plots*
 /grad_visualization*
 /logs_pointnet*
 /logs_gen*

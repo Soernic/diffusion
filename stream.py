@@ -111,10 +111,10 @@ selected_subfolder = st.selectbox('Select a subfolder', subfolders)
 subfolder_path = os.path.join(main_folder, selected_subfolder)
 
 # Slider for camera scaling
-camera_scaling = st.slider('Camera Scaling', min_value=0.1, max_value=5.0, value=1.2, step=0.1)
+camera_scaling = st.slider('Camera Scaling', min_value=0.1, max_value=5.0, value=1.1, step=0.1)
 
 # Slider for height adjustment
-height_adjustment = st.slider('Height Adjustment', min_value=-5.0, max_value=5.0, value=-0.9, step=0.1)
+height_adjustment = st.slider('Height Adjustment', min_value=-5.0, max_value=5.0, value=-0.5, step=0.1)
 
 # Get list of .npy files in the selected subfolder
 files = sorted([f for f in os.listdir(subfolder_path) if f.endswith('.npy')])
