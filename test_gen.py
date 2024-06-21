@@ -39,9 +39,9 @@ def normalize_point_clouds(pcs, mode, logger):
 
 # Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./pretrained/GEN_chair.pt')
+parser.add_argument('--ckpt', type=str, default='./pretrained/Sup870k.pt')
 parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
-parser.add_argument('--categories', type=str_list, default=['chair'])
+parser.add_argument('--categories', type=str_list, default=['airplane'])
 parser.add_argument('--classifier_categories', type=str_list, default=['all'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
@@ -96,33 +96,43 @@ ref_pcs = torch.cat(ref_pcs, dim=0)
 
 
 ##### USE THIS FOR OUR SAMPLES
-# # Generate Point Clouds
+# Generate Point Clouds
 # gen_pcs = []
-# while len(gen_pcs) < len(ref_pcs):
-#     for i in tqdm(range(0, math.ceil(len(test_dset) / args.batch_size)), 'Generate'):
-#         with torch.no_grad():
-#             z = torch.randn([args.batch_size, ckpt['args'].latent_dim]).to(args.device)
-#             x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
-#             #pdb.set_trace()
-#             #label = PointCloud(x).classify(Classifier(args))
-#             #if label == 'airplane': gen_pcs.append(x.detach().cpu())
+# gen_pcs1 = []
+# #while len(gen_pcs1) < len(ref_pcs):
+# for i in tqdm(range(0, math.ceil(len(2000) / args.batch_size)), 'Generate'):
+#     with torch.no_grad():
+#         z = torch.randn([args.batch_size, ckpt['args'].latent_dim]).to(args.device)
+#         x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
+#         label = PointCloud(x).classify(Classifier(args))
+#         if label == 'airplane': gen_pcs1.append(x.detach().cpu())
+#         #pdb.set_trace()
+#         if np.random.randn() > 2: print(len(gen_pcs))
+#     # if len(gen_pcs) >= len(ref_pcs):
+#     #     break
 #########
+
 
 
 ######## USE THIS OTHERWISE
 # Generate Point Clouds
 gen_pcs = []
-for i in tqdm(range(0, math.ceil(len(test_dset) / args.batch_size)), 'Generate'):
+gen_pcs1 = []
+for i in tqdm(range(0, math.ceil(2000 / args.batch_size)), 'Generate'):
     with torch.no_grad():
         z = torch.randn([args.batch_size, ckpt['args'].latent_dim]).to(args.device)
         x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
         gen_pcs.append(x.detach().cpu())
 
 ##########
+for i, x in enumerate(gen_pcs):
+    label = PointCloud(x[i]).classify(Classifier(args))
+    if label == 'chair': gen_pcs1.append(x.detach().cpu())
+    if len(gen_pcs1) == len(ref_pcs): break
 
-gen_pcs = torch.cat(gen_pcs, dim=0)[:len(test_dset)]
+gen_pcs1 = torch.cat(gen_pcs1, dim=0)[:len(test_dset)]
 if args.normalize is not None:
-    gen_pcs = normalize_point_clouds(gen_pcs, mode=args.normalize, logger=logger)
+    gen_pcs = normalize_point_clouds(gen_pcs1, mode=args.normalize, logger=logger)
 
 
 # Save
