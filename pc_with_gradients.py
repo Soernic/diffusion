@@ -230,6 +230,8 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             log_probs = F.log_softmax(logits, dim=-1)
             selected = log_probs[range(len(logits)), y.view(-1)]
             gradients = torch.autograd.grad(selected.sum(), x_in)[0]
+            gradients = torch.clamp(gradients, min=-1.0, max=1.0)
+
             # set_trace()
             # visualize_gradients(gradients, sigma)
             return gradients
@@ -376,16 +378,21 @@ if __name__ == "__main__":
     # t = args.num_steps
     classifier = ClassifierWithGradients(args)
     diffusion = DiffusionWithGradients(args, classifier)
-    
+
+    # Adding somewhat independent classifier for better judgement on what a point cloud is. 
+    args.ckpt_classifier = './relevant_checkpoints/classifier_airplane_chair_100.pt'
+    args.categories_classifier = ['airplane', 'chair']
+    less_biased_classifier = ClassifierWithGradients(args)
+
     labels_list = []
 
     for idx in tqdm(range(6)):
         pc_batch = diffusion.sample(y=y)
-        labels = [pc_batch[idx].classify(classifier) for idx in range(len(pc_batch))]
+        labels = [pc_batch[idx].classify(less_biased_classifier) for idx in range(len(pc_batch))]
 
         pc = pc_batch[0]
         label = labels[0]
-        set_trace()
+        # set_trace()
         pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
         #pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
         # print(labels)
