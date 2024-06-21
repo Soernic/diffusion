@@ -53,8 +53,8 @@ def normalize_point_clouds(pcs, mode, logger=None):
 if __name__ == '__main__':
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_800k.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_all_max_100.pt')
     parser.add_argument('--classifier_categories', type=str_list, default=['all'])
     parser.add_argument('--save_dir', type=str, default='./results')
     parser.add_argument('--device', type=str, default='cuda')

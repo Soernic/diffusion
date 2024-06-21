@@ -377,7 +377,7 @@ if __name__ == "__main__":
 
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_800k.pt')
     parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_2_max_100.pt')
     parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
