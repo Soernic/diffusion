@@ -61,7 +61,7 @@ parser.add_argument('--sample_num_points', type=int, default=2048)
 parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
-parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
+parser.add_argument('--ret_traj', type=eval, default=True, choices=[True, False])
 args = parser.parse_args()
 
 
