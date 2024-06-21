@@ -16,9 +16,11 @@ from utils.dataset import *
 from utils.misc import *
 
 import matplotlib.pyplot as plt
-
+from pdb import *
 
 from pc_sampler import Classifier, VariantDiffusionPoint, Diffusion, PointCloud, PointCloudBatch
+import pandas as pd
+
 
 def visualize_gradients(gradients, sigma):
     grad_values = gradients.detach().cpu().numpy().flatten()
@@ -216,6 +218,8 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
         self.classifier = classifier
         self.device = device
         self.s = s
+        self.t = 0
+        self.dataframe = pd.DataFrame(columns=np.arange(100))
 
 
     def get_mu_addition(self, x_t, sigma, y=None):
@@ -232,8 +236,11 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             selected = log_probs[range(len(logits)), y.view(-1)]
             gradients = torch.autograd.grad(selected.sum(), x_in)[0]
             gradients = torch.clamp(gradients, min=-1.0, max=1.0)
-
-            # set_trace()
+            grad = gradients.detach().cpu().numpy().reshape(-1)
+            self.dataframe[self.t] = grad
+            self.t += 1
+            
+            #set_trace()
             
             # visualize_gradients(gradients, sigma)
             return gradients
@@ -282,6 +289,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
         if self.ret_traj:
             return traj
         else:
+            self.dataframe.to_csv("Gradient dataframe.csv")
             return traj[0]
 
 
@@ -388,23 +396,24 @@ if __name__ == "__main__":
     less_biased_classifier = ClassifierWithGradients(args)
 
     labels_list = []
+    diffusion.sample(y=y)
+    # for idx in tqdm(range(6)):
+    #     pc_batch = diffusion.sample(y=y)
+    #     labels = [pc_batch[idx].classify(less_biased_classifier) for idx in range(len(pc_batch))]
 
-    for idx in tqdm(range(6)):
-        pc_batch = diffusion.sample(y=y)
-        labels = [pc_batch[idx].classify(less_biased_classifier) for idx in range(len(pc_batch))]
+    #     pc = pc_batch[0]
+    #     label = labels[0]
+    #     # set_trace()
+    #     pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
+    #     pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
+    #     # print(labels)
+    #     labels_list.extend(labels)
+    # print(len(labels_list))
 
-        pc = pc_batch[0]
-        label = labels[0]
-        # set_trace()
-        pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
-        pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
-        # print(labels)
-        labels_list.extend(labels)
-    print(len(labels_list))
-
-
+        
 
         # label = pc_batch.batch_list[0].classify(classifier)
         # pc_batch.animate(f'gradient_{idx}_{label}')
+
 
     print(f'Ratio of airplanes vs. baseline ~38%: {(labels_list.count('airplane') / len(labels_list) * 100):.1f}')
