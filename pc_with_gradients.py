@@ -233,7 +233,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             gradients = torch.autograd.grad(selected.sum(), x_in)[0]
             gradients = torch.clamp(gradients, min=-1.0, max=1.0)
 
-            set_trace()
+            # set_trace()
             
             # visualize_gradients(gradients, sigma)
             return gradients
