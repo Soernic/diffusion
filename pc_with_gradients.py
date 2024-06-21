@@ -358,8 +358,8 @@ if __name__ == "__main__":
 
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
-    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_airplane_chair_100.pt')
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/Base870k.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_all_max_100.pt')
     parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--save_dir', type=str, default='./results')
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     diffusion = DiffusionWithGradients(args, classifier)
 
     # Adding somewhat independent classifier for better judgement on what a point cloud is. 
-    args.ckpt_classifier = './relevant_checkpoints/classifier_airplane_chair_100.pt'
+    args.ckpt_classifier = './relevant_checkpoints/cl_all_max_100.pt'
     args.categories_classifier = ['airplane', 'chair']
     less_biased_classifier = ClassifierWithGradients(args)
 
@@ -397,7 +397,7 @@ if __name__ == "__main__":
         label = labels[0]
         # set_trace()
         pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
-        #pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
+        pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
         # print(labels)
         labels_list.extend(labels)
     print(len(labels_list))
