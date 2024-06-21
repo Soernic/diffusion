@@ -63,10 +63,12 @@ class PointNetMeanWithTimeEmbedding(nn.Module):
     def forward(self, x, beta):
         x = x.permute(0, 2, 1) if x.size()[2] == 3 else x
 
-        # Normalize x
-        x_mean = x.mean(dim=2, keepdim=True)
-        x_std = x.std(dim=2, keepdim=True)
-        x = (x - x_mean) / (x_std + 1e-5)  # Add a small value to avoid division by zero
+        # TODO: I suspect this maybe broke something, though I don't know why
+        # This training seems to be really unstable - at least gradients are completely popping off afterwards
+        # # Normalize x
+        # x_mean = x.mean(dim=2, keepdim=True)
+        # x_std = x.std(dim=2, keepdim=True)
+        # x = (x - x_mean) / (x_std + 1e-5)  # Add a small value to avoid division by zero
 
         n_pts = x.size()[2]
         

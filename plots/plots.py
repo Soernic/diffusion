@@ -23,12 +23,12 @@ def set_up_classifier_diffusion(args):
     return models
 
 
-def generate_batch(args, models: dict, y: torch.Tensor) -> List[GradientPointCloud]:
+def generate_batch(args, models: dict, y: torch.Tensor, q=False) -> List[GradientPointCloud]:
     """
     Generates a batch with parameters from args and returns it, guiding towards a class
     """
 
-    print(f'Batch size: {args.batch_size} | Gradient scale: {args.gradient_scale} | Desired class: {models['classifier'].mask[args.desired_class]}')
+    if not q: print(f'Batch size: {args.batch_size} | Gradient scale: {args.gradient_scale} | Desired class: {models['classifier'].mask[args.desired_class]}')
     return models['diffusion'].sample(y=y)
 
 
@@ -60,13 +60,16 @@ def save_cloud(cloud, loc, name):
 def generate_s_batch(args, file_loc, y):
     # set_trace()
     os.makedirs(os.path.join('pcs', file_loc), exist_ok=True)
-    s_range = [0, 1, 10, 100, 1000, 5000]
+    # s_range = [0, 1, 10, 100, 1000, 5000]
+    # s_range = [0] + [5**i for i in range(3, 6)]
+    s_range = [0, 500, 2000, 5000, 10000]
 
     for s in s_range:
         name = str(f's_{s:05d}')
         args.gradient_scale = s
         # seed_all(args.seed)
         models = set_up_classifier_diffusion(args)
+        # set_trace()
         seed_all(args.seed) # Since different classes in classifier, it behaves weird. This hard resets it.
         cloud = generate_batch(args, models, y)[0]
         save_cloud(cloud, file_loc, name)
@@ -78,21 +81,82 @@ def plot_1(args):
         # TODO: Update the file to be the actually best one in the training for the mean
         classifier_names = ['cl_2_max_100.pt', 'cl_all_max_100.pt', 'cl_all_mean_100.pt'] 
         classifier_paths = [os.path.join(prefix, c) for c in classifier_names]
-        classifier_categories = [['airplane', 'chair'], ['airplane', 'chair'], ['all']]
+        classifier_categories = [['airplane', 'chair'], ['all'], ['all']]
 
         for file_loc, classifier_path, classifier_category in zip(file_locs, classifier_paths, classifier_categories):
             # seed_all(args.seed)
             args.ckpt_classifier = classifier_path
             args.categories_classifier = classifier_category
+            # set_trace()
             generate_s_batch(args, file_loc, y)
 ########################## CODE FOR PLOT 1 #################################
 
 
-########################## CODE FOR PLOT 5 #################################
+# ########################## CODE FOR PLOT 5 #################################
+# def classify_clouds(pcs: List[GradientPointCloud]):
+#     labels = [pc.classify(models['classifier']) for pc in pcs]
+#     return labels
 
 
+# def compute_percentage(labels: List[str]):
+#     return labels.count('airplane') / float(len(labels))
 
-########################## CODE FOR PLOT 5 #################################
+
+# def plot_5(args, filename):
+
+#     # Hyperparams
+#     EXP_RANGE = 16          # 16
+#     BATCH_SIZE = 64         # 64
+#     RANGE = 8               # 8
+
+
+#     s_vals = [0] + [2**i for i in range(EXP_RANGE)]
+#     # s_vals = np.arange(200, step=100)
+#     classifier_acrynym = ['cl1', 'cl2', 'cl3']
+#     vals = pd.DataFrame(columns=(['s_vals'] + classifier_acrynym)) # Append the percentages to the cls afterwards
+#     vals['s_vals'] = s_vals
+
+#     args.batch_size = BATCH_SIZE
+#     prefix = './relevant_checkpoints'
+#     classifier_names = ['cl_2_max_100.pt', 'cl_all_max_100.pt', 'cl_all_mean_100.pt'] 
+#     classifier_paths = [os.path.join(prefix, c) for c in classifier_names]
+#     classifier_categories = [['airplane', 'chair'], ['airplane', 'chair'], ['all']]
+
+#     # For each classifier
+#     for classifier_path, classifier_category, acronym in zip(classifier_paths, classifier_categories, classifier_acrynym):
+#         args.ckpt_classifier = classifier_path
+#         args.categories_classifier = classifier_category
+#         percentages = list()
+
+#         pcs = list()
+
+#         # .. loop through the s-range (x-axis)
+#         for s in tqdm(s_vals, acronym):
+#             args.gradient_scale = s
+#             models = set_up_classifier_diffusion(args)
+
+#             # .. generate a bunch of clouds
+#             for iter in range(RANGE):
+#                 batch = generate_batch(args, models, y, q=True)
+#                 pcs.extend(batch)
+#                 # set_trace()
+
+#             # .. and classify them
+#             labels = classify_clouds(pcs)
+#             percentage = compute_percentage(labels)
+
+#             # .. to compute the percentage of airplanes (y-axis)
+#             percentages.append(percentage)
+#         vals[acronym] = percentages
+#         # set_trace()
+
+#     os.makedirs('plots/plot5', exist_ok=True)
+
+#     # TODO: Simplify file name
+#     vals.to_csv(f'plots/plot5/{filename}_{EXP_RANGE}_{BATCH_SIZE}.csv', index=False)
+# ########################## CODE FOR PLOT 5 #################################
+
+
 
 
 if __name__ == '__main__':
@@ -137,63 +201,23 @@ if __name__ == '__main__':
     # Default savepaths are cl1, cl2, cl3 in pcs, so open those. 
     # Adjust view height etc. with the sliders
     # You can press "Save all plots as PNG" to save them to the library
-    # plot_1(args)
+    plot_1(args)
     ########################## CODE FOR PLOT 1 #################################
 
 
     ########################## CODE FOR PLOT 5 #################################
+    # Plot 5 computes a csv-file with the airplane prediction ratio for each classifier as we vary s
+    # It computes each point over 512 samples, so N should be plenty high.
+    # Takes about 45 minutes to run on a v100
+    # Please be aware that this only runs for one diffusion model
+    # If you rerun and change the diffusion model, please change the name of the file
+    # That way you don't overwrite the existing .csv
+    # plot_5(args, '100_steps')
+    ########################## CODE FOR PLOT 5 #################################
 
-    def classify_clouds(pcs: List[GradientPointCloud]):
-        labels = [pc.classify(models['classifier']) for pc in pcs]
-        return labels
+
     
-    def compute_percentage(labels: List[str]):
-        return labels.count('airplane') / float(len(labels))
-    
 
-    # Hyperparams
-    EXP_RANGE = 4
-    BATCH_SIZE = 8
-
-
-    s_vals = [2**i for i in range(EXP_RANGE)]
-    # s_vals = np.arange(200, step=100)
-    classifier_acrynym = ['cl1', 'cl2', 'cl3']
-    vals = pd.DataFrame(columns=(['s_vals'] + classifier_acrynym)) # Append the percentages to the cls afterwards
-    vals['s_vals'] = s_vals
-
-    args.batch_size = BATCH_SIZE
-    prefix = './relevant_checkpoints'
-    classifier_names = ['cl_2_max_100.pt', 'cl_all_max_100.pt', 'cl_all_mean_100.pt'] 
-    classifier_paths = [os.path.join(prefix, c) for c in classifier_names]
-    classifier_categories = [['airplane', 'chair'], ['airplane', 'chair'], ['all']]
-    pcs = list()
-
-    # For each classifier
-    for classifier_path, classifier_category, acronym in zip(classifier_paths, classifier_categories, classifier_acrynym):
-        args.ckpt_classifier = classifier_path
-        args.categories_classifier = classifier_category
-        percentages = list()
-
-        # .. loop through the s-range (x-axis)
-        for s in s_vals:
-            args.gradient_scale = s
-            models = set_up_classifier_diffusion(args)
-
-            # .. generate a bunch of clouds
-            for iter in range(8):
-                batch = generate_batch(args, models, y)
-                pcs.extend(batch)
-                # set_trace()
-
-            # .. and classify them
-            labels = classify_clouds(pcs)
-            percentage = compute_percentage(labels)
-
-            # .. to compute the percentage of airplanes (y-axis)
-            percentages.append(percentage)
-        vals[acronym] = percentages
-        set_trace()
 
 
 

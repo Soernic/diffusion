@@ -49,21 +49,23 @@ def normalize_point_clouds(pcs, mode, logger=None):
 
 
 
-# Arguments
-parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
-parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
-parser.add_argument('--classifier_categories', type=str_list, default=['all'])
-parser.add_argument('--save_dir', type=str, default='./results')
-parser.add_argument('--device', type=str, default='cuda')
-parser.add_argument('--batch_size', type=int, default=1)
-parser.add_argument('--sample_num_points', type=int, default=2048)
-parser.add_argument('--normalize', type=str, default='shape_bbox', choices=[None, 'shape_unit', 'shape_bbox'])
-parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
-parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
 
 if __name__ == '__main__':
+    # Arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/airplane_chair_200k.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
+    parser.add_argument('--classifier_categories', type=str_list, default=['all'])
+    parser.add_argument('--save_dir', type=str, default='./results')
+    parser.add_argument('--device', type=str, default='cuda')
+    parser.add_argument('--batch_size', type=int, default=1)
+    parser.add_argument('--sample_num_points', type=int, default=2048)
+    parser.add_argument('--normalize', type=str, default='shape_unit', choices=[None, 'shape_unit', 'shape_bbox'])
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
+    parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
+
+
     args = parser.parse_args()
     seed_all(args.seed)
 

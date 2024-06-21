@@ -135,7 +135,6 @@ dmypy.json
 
 /gifs*
 /pcs*
-/relevant_checkpoints*
 /training_logs*
 /used_shell_scripts*
 /trajectories*

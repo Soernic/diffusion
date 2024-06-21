@@ -44,6 +44,7 @@ class ClassifierWithGradients(Classifier):
     def get_classifier(self, path: str):
         ckpt = torch.load(path, map_location=self.device)
         model = PointNetWithTimeEmbedding(k=len(self.classes), feature_transform=True).to(self.device)
+        # set_trace()
         model.load_state_dict(ckpt['state_dict'])
         # set_trace()
         model.eval()  # Set the model to evaluation mode - does this affect gradient tracking?
@@ -225,6 +226,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
     def classifier_gradients(self, x, sigma, y=None):
         assert y is not None
         with torch.enable_grad():
+            # x_in = self.normalize_(x.detach(), 'shape_unit').requires_grad_(True)
             x_in = x.detach().requires_grad_(True)
             beta = torch.ones(x_in.size()[0]).to(self.device) * sigma**2 # converting to tensor
             logits, _ = self.classifier.predict_gradient(x_in, beta)
@@ -285,6 +287,23 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             return traj[0]
 
 
+    def normalize_(self, pcs, mode):
+        if mode is None:
+            return pcs
+        for i in range(pcs.size(0)):
+            pc = pcs[i]
+            if mode == 'shape_unit':
+                shift = pc.mean(dim=0).reshape(1, 3)
+                scale = pc.flatten().std().reshape(1, 1)
+            elif mode == 'shape_bbox':
+                pc_max, _ = pc.max(dim=0, keepdim=True) # (1, 3)
+                pc_min, _ = pc.min(dim=0, keepdim=True) # (1, 3)
+                shift = ((pc_min + pc_max) / 2).view(1, 3)
+                scale = (pc_max - pc_min).max().reshape(1, 1) / 2
+            pc = (pc - shift) / scale
+            pcs[i] = pc
+        return pcs
+
 
 class GradientPointCloud(PointCloud):
     def __init__(self, pc, beta=None, device='cuda'):
@@ -300,7 +319,7 @@ class GradientPointCloud(PointCloud):
             self.beta = beta
 
         self.pc = pc
-        self.save_path = './pcs'
+        self.save_path = './pcs/new_pcs'
 
 
     def classify(self, classifier: ClassifierWithGradients):
@@ -359,7 +378,7 @@ if __name__ == "__main__":
     # Arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
-    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_airplane_chair_100.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_2_max_100.pt')
     parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--save_dir', type=str, default='./results')
@@ -383,7 +402,7 @@ if __name__ == "__main__":
     diffusion = DiffusionWithGradients(args, classifier)
 
     # Adding somewhat independent classifier for better judgement on what a point cloud is. 
-    args.ckpt_classifier = './relevant_checkpoints/classifier_airplane_chair_100.pt'
+    args.ckpt_classifier = './relevant_checkpoints/cl_2_max_100.pt'
     args.categories_classifier = ['airplane', 'chair']
     less_biased_classifier = ClassifierWithGradients(args)
 
@@ -396,7 +415,7 @@ if __name__ == "__main__":
         pc = pc_batch[0]
         label = labels[0]
         # set_trace()
-        pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
+        pc.save(f'test_batch{idx}')
         #pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
         # print(labels)
         labels_list.extend(labels)
