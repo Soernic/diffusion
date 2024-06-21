@@ -372,6 +372,7 @@ if __name__ == "__main__":
     parser.add_argument('--desired_class', type=int, default=0) # This is airplane # [y] * batch_size converted to tensor or somehting like that? for multi-class.. idk
     parser.add_argument('--num_steps', type=int, default=100)
     args = parser.parse_args()
+    seed_all(args.seed) # adding seed for consistency
 
 
     y = torch.ones(args.batch_size, dtype=torch.long).to(args.device) * args.desired_class
