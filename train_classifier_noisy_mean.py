@@ -143,6 +143,7 @@ def train(it):
     beta = (1 - alphas[t]) # This is the right formula. alpha = 1 - beta
     beta = betas[t]
 
+    
     x_noisy = noise_batch(x, t, alpha_bars)
     
     # set_trace()

@@ -143,8 +143,12 @@ def train(it):
     beta = (1 - alphas[t]) # This is the right formula. alpha = 1 - beta
     beta = betas[t]
 
+    set_trace() # overwrite t here to be close to 100
     x_noisy = noise_batch(x, t, alpha_bars)
-    
+    set_trace() # press "c" to continue
+    # Then PointCloud(x_noisy[0]).save('some file name without extension')
+    # now visualize
+
     # set_trace()
     # pcs = [PointCloud(x_noisy[idx].detach().cpu().unsqueeze(0).permute(0, 2, 1)).save(f'train_{str(t[idx].item()):>03}') for idx in range(4)]
     

@@ -94,6 +94,7 @@ class DiffusionWithGradients(Diffusion):
         self.classifier = classifier
         self.s = args.gradient_scale
         self.device = args.device
+        self.normalize = args.normalize
         super().__init__(args)
 
 
@@ -232,7 +233,8 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             gradients = torch.autograd.grad(selected.sum(), x_in)[0]
             gradients = torch.clamp(gradients, min=-1.0, max=1.0)
 
-            # set_trace()
+            set_trace()
+            
             # visualize_gradients(gradients, sigma)
             return gradients
         
@@ -263,7 +265,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             
             # set_trace()
             mu = c0 * (x_t - c1 * e_theta)
-            if classifier is not None and y is not None:
+            if self.classifier is not None and y is not None:
                 mu += self.get_mu_addition(
                     x_t=x_t,
                     sigma=sigma,
@@ -359,7 +361,7 @@ if __name__ == "__main__":
     parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
     parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_airplane_chair_100.pt')
     parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
-    parser.add_argument('--categories_classifier', type=str_list, default=['all'])
+    parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--save_dir', type=str, default='./results')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--batch_size', type=int, default=1)
@@ -406,4 +408,3 @@ if __name__ == "__main__":
         # pc_batch.animate(f'gradient_{idx}_{label}')
 
     print(f'Ratio of airplanes vs. baseline ~38%: {(labels_list.count('airplane') / len(labels_list) * 100):.1f}')
-    
