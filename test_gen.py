@@ -16,6 +16,7 @@ from evaluation import *
 from pc_sampler import *
 
 import pdb
+from pc_with_gradients import *
 
 def normalize_point_clouds(pcs, mode, logger):
     if mode is None:
@@ -39,9 +40,9 @@ def normalize_point_clouds(pcs, mode, logger):
 
 # Arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--ckpt', type=str, default='./pretrained/Sup870k.pt')
+parser.add_argument('--ckpt', type=str, default='./pretrained/Base870k.pt')
 parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/classifier_all_14k.pt')
-parser.add_argument('--categories', type=str_list, default=['airplane'])
+parser.add_argument('--categories', type=str_list, default=['airplane, chair'])
 parser.add_argument('--classifier_categories', type=str_list, default=['all'])
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--device', type=str, default='cuda')
@@ -88,13 +89,7 @@ logger.info(repr(model))
 #     add_spectral_norm(model, logger=logger)
 model.load_state_dict(ckpt['state_dict'])
 
-# Reference Point Clouds
-ref_pcs = []
-for i, data in enumerate(test_dset):
-    ref_pcs.append(data['pointcloud'].unsqueeze(0))
-ref_pcs = torch.cat(ref_pcs, dim=0)
-
-
+#
 ##### USE THIS FOR OUR SAMPLES
 # Generate Point Clouds
 # gen_pcs = []
@@ -113,38 +108,64 @@ ref_pcs = torch.cat(ref_pcs, dim=0)
 #########
 
 
+logger.info('Loading model...')
+parser = argparse.ArgumentParser()
+parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/Base870k.pt')
+parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_all_max_100.pt')
+parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
+parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
+parser.add_argument('--save_dir', type=str, default='./results')
+parser.add_argument('--device', type=str, default='cuda')
+parser.add_argument('--batch_size', type=int, default=1)
+parser.add_argument('--sample_num_points', type=int, default=2048)
+parser.add_argument('--normalize', type=str, default='shape_unit', choices=[None, 'shape_unit', 'shape_bbox'])
+parser.add_argument('--seed', type=int, default=42)
+parser.add_argument('--num_batches', type=int, default=1) # pcs generated = num_batches x batch_size
+parser.add_argument('--ret_traj', type=eval, default=False, choices=[True, False])
+parser.add_argument('--gradient_scale', type=float, default=1) # noted "s" usually
+parser.add_argument('--num_steps', type=int, default=100)
+args = parser.parse_args()
+seed_all(args.seed) # adding seed for consistency
 
-######## USE THIS OTHERWISE
-# Generate Point Clouds
-gen_pcs = []
-gen_pcs1 = []
-for i in tqdm(range(0, math.ceil(2000 / args.batch_size)), 'Generate'):
+# somehow define what we give the classifier
+    # t = args.num_steps
+classifier = ClassifierWithGradients(args)
+diffusion = DiffusionWithGradients(args, classifier)
+
+ref_pcs = []
+for i, data in enumerate(test_dset):
+    ref_pcs.append(data['pointcloud'].unsqueeze(0))
+ref_pcs = torch.cat(ref_pcs, dim=0)
+
+svals = [1,2,5,10,100,1000,1000]
+#loop through svals, generate the point clouds and append them to gen_pcs, then compute all metrics and save them
+
+for i, s_val in svals:
+    gen_pcs = []
+    #randomly 0 or 1 with probability 0.5 and legth of test_dset
+    desired_class = np.random.choice([0,1], len(test_dset), p=[0.5, 0.5])
+    for i in tqdm(range(0, math.ceil(len(test_dset) / args.batch_size)), 'Generate'):
+        with torch.no_grad():
+            y = torch.ones(args.batch_size, dtype=torch.long).to(args.device) * desired_class
+            x = diffusion.sample(y=y)
+            gen_pcs.append(x.detach().cpu())
+
+
+    gen_pcs = torch.cat(gen_pcs, dim=0)[:len(test_dset)]
+    if args.normalize is not None:
+        gen_pcs = normalize_point_clouds(gen_pcs, mode=args.normalize, logger=logger)
+
+
+    # Save
+    logger.info('Saving point clouds...')
+    np.save(os.path.join(save_dir, f'out{s_val}.npy'), gen_pcs.numpy())
+
+    # Compute metrics
     with torch.no_grad():
-        z = torch.randn([args.batch_size, ckpt['args'].latent_dim]).to(args.device)
-        x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
-        gen_pcs.append(x.detach().cpu())
+        results = compute_all_metrics(gen_pcs.to(args.device), ref_pcs.to(args.device), args.batch_size)
+        results = {k:v.item() for k, v in results.items()}
+        jsd = jsd_between_point_cloud_sets(gen_pcs.cpu().numpy(), ref_pcs.cpu().numpy())
+        results['jsd'] = jsd
 
-##########
-for i, x in enumerate(gen_pcs):
-    label = PointCloud(x[i]).classify(Classifier(args))
-    if label == 'chair': gen_pcs1.append(x.detach().cpu())
-    if len(gen_pcs1) == len(ref_pcs): break
-
-gen_pcs1 = torch.cat(gen_pcs1, dim=0)[:len(test_dset)]
-if args.normalize is not None:
-    gen_pcs = normalize_point_clouds(gen_pcs1, mode=args.normalize, logger=logger)
-
-
-# Save
-logger.info('Saving point clouds...')
-np.save(os.path.join(save_dir, 'out.npy'), gen_pcs.numpy())
-
-# Compute metrics
-with torch.no_grad():
-    results = compute_all_metrics(gen_pcs.to(args.device), ref_pcs.to(args.device), args.batch_size)
-    results = {k:v.item() for k, v in results.items()}
-    jsd = jsd_between_point_cloud_sets(gen_pcs.cpu().numpy(), ref_pcs.cpu().numpy())
-    results['jsd'] = jsd
-
-for k, v in results.items():
-    logger.info('%s: %.12f' % (k, v))
+    for k, v in results.items():
+        logger.info('%s: %.12f' % (k, v))
