@@ -289,7 +289,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
         if self.ret_traj:
             return traj
         else:
-            self.dataframe.to_csv("Gradient dataframe.csv")
+            #self.dataframe.to_csv("Gradient dataframe.csv")
             return traj[0]
 
 
