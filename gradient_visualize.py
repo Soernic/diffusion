@@ -4,7 +4,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.colors import LinearSegmentedColormap
 
 # Load the point cloud data
-data = np.load('./pcs/mean_1_0_chair.npy')  # replace this
+data = np.load('./pcs/gradients/mean_1_4_chair.npy')  # replace this
 
 x = data[:, 0]
 y = data[:, 1]

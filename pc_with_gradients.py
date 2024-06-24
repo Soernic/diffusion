@@ -218,9 +218,9 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
         super().__init__(net, var_sched, ret_traj)
         self.classifier = classifier
         self.device = device
-        self.s = s
-        self.t = 0
-        self.dataframe = pd.DataFrame(columns=np.arange(100))
+        #self.s = s
+        #self.t = 0
+        #self.dataframe = pd.DataFrame(columns=np.arange(100))
 
 
     def get_mu_addition(self, x_t, sigma, y=None):
@@ -237,9 +237,9 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
             selected = log_probs[range(len(logits)), y.view(-1)]
             gradients = torch.autograd.grad(selected.sum(), x_in)[0]
             gradients = torch.clamp(gradients, min=-1.0, max=1.0)
-            grad = gradients.detach().cpu().numpy().reshape(-1)
-            self.dataframe[self.t] = grad
-            self.t += 1
+            #grad = gradients.detach().cpu().numpy().reshape(-1)
+            ##self.dataframe[self.t] = grad
+            #self.t += 1
             
             #set_trace()
             
