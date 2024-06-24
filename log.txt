@@ -1,3 +1,8 @@
+ac1e081 - Malte, 61 seconds ago : Merge branch 'malteplots' of https://github.com/Soernic/diffusion into malteplots
+507e70d - Malte, 66 seconds ago : Last commit. It is a sad day for this to end. But it must.
+4dfdb57 - Malte Lau, 2 days ago : Merge branch 'malteplots' of https://github.com/Soernic/diffusion into malteplots
+e35414c - Malte Lau, 2 days ago : gradhist plots added
+32b8232 - Malte Lau, 2 days ago : added loop function for test_gen to test point samples
 9a932bd - Malte, 2 days ago : Last plots
 cd8ba98 - Malte, 3 days ago : ......igen
 8eede12 - Malte, 3 days ago : blablablamagnusbeder
