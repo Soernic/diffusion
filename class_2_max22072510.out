@@ -1,0 +1,64 @@
+Cl_2_max
+0
+[lgan_mmd-CD] 0.00399951
+[lgan_cov-CD] 0.28749999
+1
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00406079
+[lgan_cov-CD] 0.28000000
+2
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00393795
+[lgan_cov-CD] 0.32749999
+4
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00397853
+[lgan_cov-CD] 0.31250000
+8
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00394317
+[lgan_cov-CD] 0.30500001
+16
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00395609
+[lgan_cov-CD] 0.28500000
+32
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00389000
+[lgan_cov-CD] 0.31750000
+64
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00394716
+[lgan_cov-CD] 0.30750000
+128
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00407006
+[lgan_cov-CD] 0.30250001
+256
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00412719
+[lgan_cov-CD] 0.31999999
+512
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00472021
+[lgan_cov-CD] 0.32499999
+1024
+Pairwise EMD CD
+[lgan_mmd-CD] 0.00800221
+[lgan_cov-CD] 0.20250000
+2048
+Pairwise EMD CD
+[lgan_mmd-CD] 0.01557614
+[lgan_cov-CD] 0.16500001
+4096
+Pairwise EMD CD
+[lgan_mmd-CD] 0.01625556
+[lgan_cov-CD] 0.16000000
+8192
+Pairwise EMD CD
+[lgan_mmd-CD] 0.01851309
+[lgan_cov-CD] 0.13750000
+16384
+Pairwise EMD CD
+[lgan_mmd-CD] 0.01982564
+[lgan_cov-CD] 0.15500000

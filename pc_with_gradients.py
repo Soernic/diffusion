@@ -133,6 +133,7 @@ class DiffusionWithGradients(Diffusion):
         if self.ret_traj:
             return self.ret_traj_(traj_list)
         else:
+            #return self.pcs
             return self.ret_sample_()
         
 
@@ -140,8 +141,8 @@ class DiffusionWithGradients(Diffusion):
         self.pcs = torch.cat(self.pcs, dim=0)
         if self.normalize is not None:
             self.pcs = self.normalize_(self.pcs, mode=self.normalize)
-        self.pcs = [GradientPointCloud(pc, device=self.device) for pc in self.pcs]
-        # self.pcs = [PointCloud(pc) for pc in self.pcs]
+        # self.pcs = [GradientPointCloud(pc, device=self.device) for pc in self.pcs]
+        #self.pcs = [PointCloud(pc) for pc in self.pcs]
         return self.pcs
 
 
@@ -289,7 +290,7 @@ class TimeEmbeddingVariantDiffusionPoint(VariantDiffusionPoint):
         if self.ret_traj:
             return traj
         else:
-            #self.dataframe.to_csv("Gradient dataframe.csv")
+            self.dataframe.to_csv("Gradient_dataframe_cl2.csv")
             return traj[0]
 
 
@@ -366,10 +367,10 @@ if __name__ == "__main__":
 
     # Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/Base870k.pt')
-    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_all_max_100.pt')
-    parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
-    parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_800k.pt')
+    parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_2_max_100.pt')
+    parser.add_argument('--categories', type=str_list, default=['airplane','chair'])
+    parser.add_argument('--categories_classifier', type=str_list, default=['airplane','chair'])
     parser.add_argument('--save_dir', type=str, default='./results')
     parser.add_argument('--device', type=str, default='cuda')
     parser.add_argument('--batch_size', type=int, default=1)
@@ -391,23 +392,25 @@ if __name__ == "__main__":
     diffusion = DiffusionWithGradients(args, classifier)
 
     # Adding somewhat independent classifier for better judgement on what a point cloud is. 
-    args.ckpt_classifier = './relevant_checkpoints/cl_all_max_100.pt'
-    args.categories_classifier = ['airplane', 'chair']
+    args.ckpt_classifier = './relevant_checkpoints/cl_all_mean_100.pt'
+    args.categories_classifier = ['all']
     less_biased_classifier = ClassifierWithGradients(args)
 
     labels_list = []
-    diffusion.sample(y=y)
-    # for idx in tqdm(range(6)):
-    #     pc_batch = diffusion.sample(y=y)
-    #     labels = [pc_batch[idx].classify(less_biased_classifier) for idx in range(len(pc_batch))]
 
-    #     pc = pc_batch[0]
-    #     label = labels[0]
-    #     # set_trace()
-    #     pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
-    #     pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
-    #     # print(labels)
-    #     labels_list.extend(labels)
+    for idx in tqdm(range(1)):
+        pc_batch = diffusion.sample(y=y)
+        # labels = [pc_batch[idx].classify(less_biased_classifier) for idx in range(len(pc_batch))]
+
+        pc = pc_batch[0]
+        set_trace()
+        # pc.save(f'testing')
+        # label = labels[0]
+        # set_trace()
+        # pc.save(f'mean_{args.gradient_scale}_{idx}_{labels[0]}')
+        # pc_batch[0].save(f'{args.gradient_scale}_{idx}_{labels[0]}')
+        # print(labels)
+        #labels_list.extend(labels)
     # print(len(labels_list))
 
         
@@ -416,4 +419,4 @@ if __name__ == "__main__":
         # pc_batch.animate(f'gradient_{idx}_{label}')
 
 
-    print(f'Ratio of airplanes vs. baseline ~38%: {(labels_list.count('airplane') / len(labels_list) * 100):.1f}')
+#    print(f'Ratio of airplanes vs. baseline ~38%: {(labels_list.count('airplane') / len(labels_list) * 100):.1f}')

@@ -164,8 +164,8 @@ def knn(Mxx, Mxy, Myy, k, sqrt=False):
     s.update({
         'precision': s['tp'] / (s['tp'] + s['fp'] + 1e-10),
         'recall': s['tp'] / (s['tp'] + s['fn'] + 1e-10),
-        'acc_t': s['tp'] / (s['tp'] + s['fn'] + 1e-10),
-        'acc_f': s['tn'] / (s['tn'] + s['fp'] + 1e-10),
+        #'acc_t': s['tp'] / (s['tp'] + s['fn'] + 1e-10),
+        #'acc_f': s['tn'] / (s['tn'] + s['fp'] + 1e-10),
         'acc': torch.eq(label, pred).float().mean(),
     })
     return s
@@ -182,7 +182,7 @@ def lgan_mmd_cov(all_dist):
     return {
         'lgan_mmd': mmd,
         'lgan_cov': cov,
-        'lgan_mmd_smp': mmd_smp,
+        #'lgan_mmd_smp': mmd_smp,
     }
 
 
@@ -197,7 +197,7 @@ def lgan_mmd_cov_match(all_dist):
     return {
         'lgan_mmd': mmd,
         'lgan_cov': cov,
-        'lgan_mmd_smp': mmd_smp,
+        #'lgan_mmd_smp': mmd_smp,
     }, min_idx.view(-1)
 
 

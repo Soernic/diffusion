@@ -15,7 +15,7 @@ from models.classifier import *
 from utils.data import *
 from utils.dataset import *
 from utils.misc import *
-
+import pdb
 
 
 
@@ -104,9 +104,10 @@ for i in tqdm(range(1), 'Generate'):
         x = model.sample(z, args.sample_num_points, flexibility=ckpt['args'].flexibility)
         gen_pcs.append(x.detach().cpu())
 gen_pcs = torch.cat(gen_pcs, dim=0)[:len(test_dset)]
+
 if args.normalize is not None:
     gen_pcs = normalize_point_clouds(gen_pcs, mode=args.normalize, logger=logger)
-
+pdb.set_trace()
 
 pc = gen_pcs[0]
 print(pc.shape)

@@ -37,7 +37,7 @@ parser.add_argument('--spectral_norm', type=eval, default=False, choices=[True, 
 
 # Datasets and loaders
 parser.add_argument('--dataset_path', type=str, default='./data/shapenet.hdf5')
-parser.add_argument('--categories', type=str_list, default='airplane')
+parser.add_argument('--categories', type=str_list, default=['chair','airplane'])
 parser.add_argument('--scale_mode', type=str, default='shape_unit')
 parser.add_argument('--train_batch_size', type=int, default=128)
 parser.add_argument('--val_batch_size', type=int, default=64)
@@ -56,7 +56,7 @@ parser.add_argument('--logging', type=eval, default=True, choices=[True, False])
 parser.add_argument('--log_root', type=str, default='./logs_gen')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--max_iters', type=int, default=1*MILLION)
-parser.add_argument('--val_freq', type=int, default=1*THOUSAND)
+parser.add_argument('--val_freq', type=int, default=100*THOUSAND)
 parser.add_argument('--test_freq', type=int, default=10*THOUSAND)
 parser.add_argument('--test_size', type=int, default=400)
 parser.add_argument('--tag', type=str, default=None)
@@ -249,7 +249,7 @@ try:
                 'scheduler': scheduler.state_dict(),
             }
             ckpt_mgr.save(model, args, 0, others=opt_states, step=it)
-        if it % args.test_freq == 0 or it == args.max_iters or it in [10**i for i in range(7)]:
+        if it % args.test_freq == 0 or it == args.max_iters or it in [10000]:
             test(it)
         it += 1
 

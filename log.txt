@@ -1,0 +1,96 @@
+9a932bd - Malte, 2 days ago : Last plots
+cd8ba98 - Malte, 3 days ago : ......igen
+8eede12 - Malte, 3 days ago : blablablamagnusbeder
+3c66cd8 - Malte, 3 days ago : yes
+1ec78d7 - Malte, 3 days ago : publish
+5507885 - Soernic, 3 days ago : Addign trained classifiers for num_steps = 100
+4e8bd88 - Soernic, 3 days ago : Adding plotting code for report and further updates to stream
+67d84e8 - Soernic, 3 days ago : major updates to streamlit visualizer including plot saving and gallery
+695e22c - Malte, 3 days ago : Merge branch 'metrics' into develop
+b8f1065 - Malte, 3 days ago : test_gen.py changed for our classifer
+f81dc45 - Soernic, 3 days ago : Light background in .toml file and removal of axes for easier plots
+7b47c52 - Soernic, 3 days ago : Minor fixes
+65b9e0b - Soernic, 3 days ago : Updates to pc_with_Gradients
+b9da623 - Soernic, 3 days ago : Updates to stream
+67b7dae - Soernic, 3 days ago : adding seeds
+093e044 - Soernic, 3 days ago : Making Mean Pool implementation resutls easier to find
+c1c5e96 - Soernic, 3 days ago : Cleaning up
+62be0ff - Soernic, 3 days ago : adding less biased classifier for more objective class labels
+1bdace4 - Soernic, 4 days ago : changes to gitignore for cleanup of develop branch
+8cb2e70 - Soernic, 4 days ago : Mean pooling attempt at pointnet classifier with time embedding
+a522839 - Soernic, 4 days ago : Major update to pc_sampler, now with time aware classifier and improved code, modified for better functionality
+35a8348 - Soernic, 4 days ago : updates for streamlit visualizor for better functionality
+f7cf36c - Soernic, 4 days ago : architecture and training for max pool pointnet with time embedding projected on each point
+bef97ec - Soernic, 4 days ago : Minor functionality change
+2b9bc2e - Magnus, 5 days ago : Merge branch 'develop' of https://github.com/Soernic/diffusion into develop help
+230fb73 - Magnus, 5 days ago : validation plot script that doesnt work yet
+8ca8e64 - Malte, 5 days ago : Merge branch 'develop' of https://github.com/Soernic/diffusion into develop
+e83427c - Malte, 5 days ago : ..
+0ddf80b - Magnus, 5 days ago : uploading model checkpoints
+e889e4e - Malte, 5 days ago : Merge branch 'develop' of https://github.com/Soernic/diffusion into develop
+34bbac9 - Malte, 5 days ago : change pc_sampler and test_gen
+4dafd1e - Soernic, 5 days ago : Update - I'm not sure of all the changes..
+be934e1 - Malte Lau, 6 days ago : plot samples fra shapenetcore
+e0b082c - Malte, 7 days ago : Merge branch 'develop' of https://github.com/Soernic/diffusion into develop
+b19a1f7 - Malte, 7 days ago : Gradient visualization
+0a8633d - Soernic, 10 days ago : adding gifs and cleaning up
+90cad82 - Malte, 10 days ago : Merge branch 'develop' of https://github.com/Soernic/diffusion into develop
+56cb927 - Malte, 10 days ago : eval_metrics change
+9dee3cb - Soernic, 11 days ago : Adding new samples and diffusion visualization file for ease of use.
+751fd67 - Soernic, 11 days ago : visualizationchanges
+fcc0742 - Soernic, 11 days ago : testing wiht plotly for sexier plots
+20b9b1b - Soernic, 11 days ago : animations integrated in classes and example diffusion gifs
+394f055 - Soernic, 11 days ago : before doinge extensive shape and format changes
+f95f467 - Soernic, 12 days ago : Animation PoC done and bug fixes to pc_sampler
+c4cf568 - Soernic, 12 days ago : general clean-up
+e701b18 - Soernic, 12 days ago : gif implementation method updated
+9e4107e - Soernic, 12 days ago : combining sample_variant with regualr sample in diffusion class to reduce complexity
+085b9c3 - Soernic, 12 days ago : building out PointCloudBatch class for easy visualization
+e9f67cd - Soernic, 12 days ago : pc_sampler updates and streamlit visualizer
+bc35737 - Soernic, 12 days ago : pc sampling and guidance implementation + code base build-out
+2042c2e - Soernic, 13 days ago : before I fuck things up with classifier guidance
+98d764d - Soernic, 13 days ago : Merge branch 'classifier' into develop
+979021a - Soernic, 13 days ago : Increasing wall time
+a6d3104 - Soernic, 2 weeks ago : last changes...
+62f4eb4 - Soernic, 2 weeks ago : clean up of repo
+5f1c917 - Soernic, 2 weeks ago : adding new yml file
+be07a41 - Malte, 2 weeks ago : first commit
+143dfeb - Soernic, 2 weeks ago : Adding parallellisation training code
+b6af00f - Soernic, 2 weeks ago : 200k iters for two classes
+8b5a651 - Soernic, 2 weeks ago : early visualization of point cloud generation
+9c67130 - Soernic, 2 weeks ago : Adding checkpoints - remove later, they are too big
+0b57bd4 - Soernic, 2 weeks ago : another training attempt
+1f14d5b - Soernic, 2 weeks ago : First training attempt - failed
+0ab2b14 - Soernic, 2 weeks ago : PointNet trianing PoC-like
+1e30d48 - Shitong Luo, 1 year, 7 months ago : Update README.md
+0d9b19a - Shitong Luo, 1 year, 10 months ago : Update README.md
+910334a - Shitong Luo, 2 years, 9 months ago : Update README.md
+0bfd688 - Shitong Luo, 2 years, 9 months ago : Merge pull request #15 from luost26/no-cuda-ext
+3c55e28 - Shitong Luo, 2 years, 9 months ago : Update README.md
+23208cc - luost26, 2 years, 9 months ago : Update
+035ad8a - luost26, 2 years, 9 months ago : Update
+045d583 - luost26, 2 years, 9 months ago : Update
+f588f06 - luost26, 2 years, 9 months ago : Update
+3274f1c - Shitong Luo, 2 years, 9 months ago : Update
+cde2e50 - Shitong Luo, 3 years ago : Create LICENSE
+5e4b828 - Shitong Luo, 3 years ago : Update README.md
+9be449f - Shitong Luo, 3 years ago : Update README.md
+84a833e - Shitong Luo, 3 years ago : Merge pull request #6 from luost26/code
+b3013ef - luost, 3 years ago : Upload
+5fd3f79 - luost, 3 years ago : Update env.yml
+a8dacfc - luost, 3 years ago : Update .gitignore
+c9261fc - luost, 3 years ago : Add evaluation module
+c02414a - luost, 3 years ago : Add env.yml
+f9b02c9 - Shitong Luo, 3 years ago : Update README.md
+325972d - Shitong Luo, 3 years ago : Upload codes
+e8ea27e - Shitong Luo, 3 years ago : Update .gitignore
+34e8f7c - Shitong Luo, 3 years ago : Update README.md
+7f527ad - Shitong Luo, 3 years ago : Update README.md
+ef15fdc - Shitong Luo, 3 years, 2 months ago : Update README.md
+64b05ec - luost26, 3 years, 4 months ago : Update README.md
+a78bf9e - luost26, 3 years, 4 months ago : Update README.md
+2c23fc3 - Shitong Luo, 3 years, 4 months ago : Update README.md
+a928b40 - luost26, 3 years, 4 months ago : Update README.md
+6294a2a - luost26, 3 years, 4 months ago : Update README.md
+8d3b4ce - luost26, 3 years, 4 months ago : Update README
+3570cea - Shitong Luo, 3 years, 4 months ago : Initial commit
