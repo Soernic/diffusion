@@ -11,18 +11,28 @@ from numpy.linalg import norm
 from tqdm.auto import tqdm
 
 
-_EMD_NOT_IMPL_WARNED = False
-def emd_approx(sample, ref):
-    global _EMD_NOT_IMPL_WARNED
-    emd = torch.zeros([sample.size(0)]).to(sample)
-    if not _EMD_NOT_IMPL_WARNED:
-        _EMD_NOT_IMPL_WARNED = True
-        print('\n\n[WARNING]')
-        print('  * EMD is not implemented due to GPU compatability issue.')
-        print('  * We will set all EMD to zero by default.')
-        print('  * You may implement your own EMD in the function `emd_approx` in ./evaluation/evaluation_metrics.py')
-        print('\n')
-    return emd
+import torch
+from scipy.optimize import linear_sum_assignment
+from scipy.spatial.distance import cdist
+
+def emd_approx(x, y):
+    bs, npts, mpts, dim = x.size(0), x.size(1), y.size(1), x.size(2)
+    assert npts == mpts, "EMD only works if two point clouds are equal size"
+    dim = x.shape[-1]
+    x = x.reshape(bs, npts, 1, dim)
+    y = y.reshape(bs, 1, mpts, dim)
+    dist = (x - y).norm(dim=-1, keepdim=False)  # (bs, npts, mpts)
+
+    emd_lst = []
+    dist_np = dist.cpu().detach().numpy()
+    for i in range(bs):
+        d_i = dist_np[i]
+        r_idx, c_idx = linear_sum_assignment(d_i)
+        emd_i = d_i[r_idx, c_idx].mean()
+        emd_lst.append(emd_i)
+    emd = np.stack(emd_lst).reshape(-1)
+    emd_torch = torch.from_numpy(emd).to(x)
+    return emd_torch
 
 # def emd_approx(x, y):
 #     bs, npts, mpts, dim = x.size(0), x.size(1), y.size(1), x.size(2)
@@ -213,11 +223,11 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size):
         "%s-CD" % k: v for k, v in res_cd.items()
     })
     
-    ## EMD
-    # res_emd = lgan_mmd_cov(M_rs_emd.t())
-    # results.update({
-    #     "%s-EMD" % k: v for k, v in res_emd.items()
-    # })
+    # EMD
+    res_emd = lgan_mmd_cov(M_rs_emd.t())
+    results.update({
+        "%s-EMD" % k: v for k, v in res_emd.items()
+    })
 
     for k, v in results.items():
         print('[%s] %.8f' % (k, v.item()))
@@ -231,11 +241,11 @@ def compute_all_metrics(sample_pcs, ref_pcs, batch_size):
     results.update({
         "1-NN-CD-%s" % k: v for k, v in one_nn_cd_res.items() if 'acc' in k
     })
-    ## EMD
-    # one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
-    # results.update({
-    #     "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
-    # })
+    # EMD
+    one_nn_emd_res = knn(M_rr_emd, M_rs_emd, M_ss_emd, 1, sqrt=False)
+    results.update({
+        "1-NN-EMD-%s" % k: v for k, v in one_nn_emd_res.items() if 'acc' in k
+    })
 
     return results
 
