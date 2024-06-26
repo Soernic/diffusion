@@ -92,69 +92,72 @@ def plot_1(args):
 ########################## CODE FOR PLOT 1 #################################
 
 
-# ########################## CODE FOR PLOT 5 #################################
-# def classify_clouds(pcs: List[GradientPointCloud]):
-#     labels = [pc.classify(models['classifier']) for pc in pcs]
-#     return labels
+########################## CODE FOR PLOT 5 #################################
+def classify_clouds(pcs: List[GradientPointCloud]):
+    labels = [pc.classify(models['classifier']) for pc in pcs]
+    return labels
 
 
-# def compute_percentage(labels: List[str]):
-#     return labels.count('airplane') / float(len(labels))
+def compute_percentage(labels: List[str]):
+    return labels.count('chair') / float(len(labels))
 
 
-# def plot_5(args, filename):
+def plot_5(args, filename):
 
-#     # Hyperparams
-#     EXP_RANGE = 16          # 16
-#     BATCH_SIZE = 64         # 64
-#     RANGE = 8               # 8
+    # Hyperparams
+    EXP_RANGE = 16         # 16
+    BATCH_SIZE = 32       # 64
+    RANGE = 8              # 8
 
 
-#     s_vals = [0] + [2**i for i in range(EXP_RANGE)]
-#     # s_vals = np.arange(200, step=100)
-#     classifier_acrynym = ['cl1', 'cl2', 'cl3']
-#     vals = pd.DataFrame(columns=(['s_vals'] + classifier_acrynym)) # Append the percentages to the cls afterwards
-#     vals['s_vals'] = s_vals
+    s_vals = [0] + [2**i for i in range(EXP_RANGE)]
+    # s_vals = np.arange(200, step=100)
+    classifier_acrynym = ['cl1', 'cl2', 'cl3']
+    vals = pd.DataFrame(columns=(['s_vals'] + classifier_acrynym)) # Append the percentages to the cls afterwards
+    vals['s_vals'] = s_vals
 
-#     args.batch_size = BATCH_SIZE
-#     prefix = './relevant_checkpoints'
-#     classifier_names = ['cl_2_max_100.pt', 'cl_all_max_100.pt', 'cl_all_mean_100.pt'] 
-#     classifier_paths = [os.path.join(prefix, c) for c in classifier_names]
-#     classifier_categories = [['airplane', 'chair'], ['airplane', 'chair'], ['all']]
+    args.batch_size = BATCH_SIZE
+    prefix = './relevant_checkpoints'
+    classifier_names = ['cl_2_max_100.pt', 'cl_all_max_100.pt', 'cl_all_mean_100.pt'] 
+    classifier_paths = [os.path.join(prefix, c) for c in classifier_names]
+    classifier_categories = [['airplane', 'chair'], ['all'], ['all']]
 
-#     # For each classifier
-#     for classifier_path, classifier_category, acronym in zip(classifier_paths, classifier_categories, classifier_acrynym):
-#         args.ckpt_classifier = classifier_path
-#         args.categories_classifier = classifier_category
-#         percentages = list()
+    # For each classifier
+    for classifier_path, classifier_category, acronym in zip(classifier_paths, classifier_categories, classifier_acrynym):
+        if classifier_category == ['all']:
+            args.desired_class = 14
+        args.ckpt_classifier = classifier_path
+        args.categories_classifier = classifier_category
+        percentages = list()
 
-#         pcs = list()
+        pcs = list()
 
-#         # .. loop through the s-range (x-axis)
-#         for s in tqdm(s_vals, acronym):
-#             args.gradient_scale = s
-#             models = set_up_classifier_diffusion(args)
+        # .. loop through the s-range (x-axis)
+        for s in tqdm(s_vals, acronym):
+            args.gradient_scale = s
+            models = set_up_classifier_diffusion(args)
+            # set_trace()
 
-#             # .. generate a bunch of clouds
-#             for iter in range(RANGE):
-#                 batch = generate_batch(args, models, y, q=True)
-#                 pcs.extend(batch)
-#                 # set_trace()
+            # .. generate a bunch of clouds
+            for iter in range(RANGE):
+                batch = generate_batch(args, models, y, q=True)
+                pcs.extend(batch)
+                # set_trace()
 
-#             # .. and classify them
-#             labels = classify_clouds(pcs)
-#             percentage = compute_percentage(labels)
+            # .. and classify them
+            labels = classify_clouds(pcs)
+            percentage = compute_percentage(labels)
 
-#             # .. to compute the percentage of airplanes (y-axis)
-#             percentages.append(percentage)
-#         vals[acronym] = percentages
-#         # set_trace()
+            # .. to compute the percentage of airplanes (y-axis)
+            percentages.append(percentage)
+        vals[acronym] = percentages
+        # set_trace()
 
-#     os.makedirs('plots/plot5', exist_ok=True)
+    os.makedirs('plots/plot5', exist_ok=True)
 
-#     # TODO: Simplify file name
-#     vals.to_csv(f'plots/plot5/{filename}_{EXP_RANGE}_{BATCH_SIZE}.csv', index=False)
-# ########################## CODE FOR PLOT 5 #################################
+    # TODO: Simplify file name
+    vals.to_csv(f'plots/plot5/{filename}_{EXP_RANGE}_{BATCH_SIZE}.csv', index=False)
+########################## CODE FOR PLOT 5 #################################
 
 
 
@@ -173,7 +176,7 @@ if __name__ == '__main__':
     parser.add_argument('--categories', type=str_list, default=['airplane', 'chair'])
 
     # Things you can touch. TODO: Note, if you change the ckpt_classifier, make sure the categories_classifier are correct.
-    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_1M.pt')
+    parser.add_argument('--ckpt', type=str, default='./relevant_checkpoints/ckpt_base_800k.pt')
     parser.add_argument('--ckpt_classifier', type=str, default='./relevant_checkpoints/cl_2_max_100.pt')
     parser.add_argument('--categories_classifier', type=str_list, default=['airplane', 'chair'])
     parser.add_argument('--seed', type=int, default=15)
@@ -201,7 +204,7 @@ if __name__ == '__main__':
     # Default savepaths are cl1, cl2, cl3 in pcs, so open those. 
     # Adjust view height etc. with the sliders
     # You can press "Save all plots as PNG" to save them to the library
-    plot_1(args)
+    # plot_1(args)
     ########################## CODE FOR PLOT 1 #################################
 
 
@@ -213,9 +216,16 @@ if __name__ == '__main__':
     # If you rerun and change the diffusion model, please change the name of the file
     # That way you don't overwrite the existing .csv
     # plot_5(args, '100_steps')
+
+    # notice, if you are using chairs, you need to set the desired class to 14 instead of 1 for the ones with 55 classes.
     ########################## CODE FOR PLOT 5 #################################
 
 
+    ########################## CODE FOR PLOT 5 #################################
+    
+    ########################## CODE FOR PLOT 5 #################################
+
+    
     
 
 

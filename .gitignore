@@ -142,5 +142,5 @@ dmypy.json
 /grad_visualization*
 /logs_pointnet*
 /logs_gen*
-*.gif
 *.sh
+*.csv

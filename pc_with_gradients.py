@@ -319,7 +319,7 @@ class GradientPointCloud(PointCloud):
             self.beta = beta
 
         self.pc = pc
-        self.save_path = './pcs/new_pcs'
+        self.save_path = './pcs'
 
 
     def classify(self, classifier: ClassifierWithGradients):
